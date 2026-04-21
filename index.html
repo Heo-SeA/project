@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사업 관리</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 14px; }
+
+  /* Layout */
+  .app { display: flex; height: 100vh; }
+  .sidebar { width: 220px; min-width: 220px; background: #fff; border-right: 1px solid #e8e8e6; display: flex; flex-direction: column; padding: 1rem 0; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { padding: 1rem 1.5rem; border-bottom: 1px solid #e8e8e6; background: #fff; display: flex; align-items: center; justify-content: space-between; }
+  .topbar h2 { font-size: 16px; font-weight: 500; }
+  .content { flex: 1; overflow-y: auto; padding: 1.5rem; }
+
+  /* Sidebar */
+  .sidebar-logo { padding: 0 1rem 1rem; border-bottom: 1px solid #e8e8e6; margin-bottom: .5rem; }
+  .sidebar-logo h1 { font-size: 15px; font-weight: 600; }
+  .sidebar-logo p { font-size: 11px; color: #888; margin-top: 2px; }
+  .nav-section { font-size: 10px; color: #aaa; padding: .75rem 1rem 4px; text-transform: uppercase; letter-spacing: .06em; }
+  .nav-item { padding: 8px 1rem; font-size: 13px; cursor: pointer; color: #555; border-left: 2px solid transparent; transition: all .12s; }
+  .nav-item:hover { background: #f5f5f3; color: #1a1a1a; }
+  .nav-item.active { color: #1a1a1a; border-left: 2px solid #7F77DD; background: #f0effe; font-weight: 500; }
+
+  /* Buttons */
+  .btn { padding: 6px 14px; font-size: 13px; border: 1px solid #d0d0cc; border-radius: 8px; background: transparent; color: #1a1a1a; cursor: pointer; font-family: inherit; transition: background .12s; }
+  .btn:hover { background: #f5f5f3; }
+  .btn-primary { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+  .btn-primary:hover { background: #534AB7; border-color: #534AB7; }
+  .btn-danger { color: #a32d2d; border-color: #f09595; }
+  .btn-danger:hover { background: #fcebeb; }
+  .btn-sm { padding: 3px 8px; font-size: 11px; }
+
+  /* Cards */
+  .card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card h3 { font-size: 13px; font-weight: 500; margin-bottom: .75rem; color: #555; }
+
+  /* Metrics */
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .metric { background: #f5f5f3; border-radius: 8px; padding: .75rem 1rem; }
+  .metric-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .metric-value { font-size: 22px; font-weight: 600; }
+
+  /* Badges */
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  .badge-active { background: #e1f5ee; color: #0f6e56; }
+  .badge-done   { background: #faece7; color: #993c1d; }
+  .badge-plan   { background: #e6f1fb; color: #185fa5; }
+  .badge-hold   { background: #faeeda; color: #854f0b; }
+  .dday { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .dday-danger { background: #fcebeb; color: #a32d2d; }
+  .dday-warn   { background: #faeeda; color: #854f0b; }
+  .dday-ok     { background: #eaf3de; color: #3b6d11; }
+  .dday-past   { background: #f0f0ee; color: #888; }
+
+  /* Rows */
+  .event-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0ee; font-size: 13px; }
+  .event-row:last-child { border-bottom: none; }
+  .event-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .dot-red { background: #e24b4a; } .dot-amber { background: #ef9f27; } .dot-green { background: #639922; } .dot-gray { background: #ccc; }
+  .project-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0ee; font-size: 13px; cursor: pointer; }
+  .project-row:last-child { border-bottom: none; }
+  .project-row:hover { background: #fafaf9; margin: 0 -1.25rem; padding: 10px 1.25rem; }
+
+  /* Forms */
+  .form-group { margin-bottom: 12px; }
+  .form-group label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; font-size: 13px; border: 1px solid #d0d0cc; border-radius: 8px; background: #fff; color: #1a1a1a; font-family: inherit; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127,119,221,.12); }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.6; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: #fff; border-radius: 14px; padding: 1.5rem; width: 480px; max-width: 95vw; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.12); }
+  .modal h3 { font-size: 15px; font-weight: 600; margin-bottom: 1.25rem; }
+  .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f0f0ee; }
+
+  /* Tabs */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 1rem; }
+  .tab { padding: 6px 14px; font-size: 12px; border: 1px solid #d0d0cc; border-radius: 8px; cursor: pointer; background: transparent; color: #666; font-family: inherit; transition: all .12s; }
+  .tab:hover { background: #f5f5f3; }
+  .tab.active { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+
+  /* Memos */
+  .memo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .memo-card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1rem 1.25rem; cursor: pointer; transition: border-color .12s, box-shadow .12s; }
+  .memo-card:hover { border-color: #b0aae8; box-shadow: 0 2px 8px rgba(127,119,221,.1); }
+  .memo-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .memo-preview { font-size: 12px; color: #888; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .memo-date { font-size: 11px; color: #bbb; margin-top: 8px; }
+
+  /* Calendar */
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .cal-nav h3 { font-size: 15px; font-weight: 500; }
+  .cal-nav button { padding: 4px 12px; font-size: 13px; border: 1px solid #d0d0cc; border-radius: 8px; background: transparent; cursor: pointer; font-family: inherit; }
+  .cal-nav button:hover { background: #f5f5f3; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid #e8e8e6; border-radius: 12px; overflow: hidden; }
+  .cal-dow { background: #f5f5f3; padding: 8px 4px; text-align: center; font-size: 11px; color: #888; font-weight: 500; border-bottom: 1px solid #e8e8e6; }
+  .cal-cell { min-height: 90px; padding: 6px; border-right: 1px solid #f0f0ee; border-bottom: 1px solid #f0f0ee; background: #fff; vertical-align: top; }
+  .cal-cell:nth-child(7n) { border-right: none; }
+  .cal-cell.other-month { background: #fafaf9; }
+  .cal-cell.today { background: #f0effe; }
+  .cal-day { font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; }
+  .cal-cell.today .cal-day { background: #7F77DD; color: #fff; }
+  .cal-event { font-size: 10px; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .cal-event:hover { opacity: .8; }
+  .cal-event-red    { background: #fcebeb; color: #a32d2d; }
+  .cal-event-amber  { background: #faeeda; color: #854f0b; }
+  .cal-event-green  { background: #eaf3de; color: #3b6d11; }
+  .cal-event-gray   { background: #f0f0ee; color: #666; }
+
+  .empty { text-align: center; padding: 3rem; color: #aaa; font-size: 13px; line-height: 1.8; }
+
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+    .grid3 { grid-template-columns: 1fr 1fr; }
+    .cal-cell { min-height: 60px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h1>사업 관리</h1>
+      <p id="today-date"></p>
+    </div>
+    <div class="nav-section">메뉴</div>
+    <div class="nav-item active" onclick="showPage('dashboard')">대시보드</div>
+    <div class="nav-item" onclick="showPage('projects')">사업 목록</div>
+    <div class="nav-item" onclick="showPage('schedule')">일정 관리</div>
+    <div class="nav-item" onclick="showPage('memos')">메모장</div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">대시보드</h2>
+      <div id="topbar-actions"></div>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<div id="modal-container"></div>
+
+<script>
+// ─── 데이터 ─────────────────────────────────────────────
+const STORAGE_KEY = 'biz_manager_v1';
+
+const defaultDB = {
+  projects: [
+    { id: 1, name: '접근성 인증 갱신', category: '인증', startDate: '2025-01-01', endDate: '2026-06-30', budget: 5000000, status: '진행중', manager: '김담당', memo: '1차 심사 신청 기한 확인 필요. 서류 준비 중.' },
+    { id: 2, name: '스마트공장 보조금', category: '보조금', startDate: '2025-03-01', endDate: '2025-12-31', budget: 30000000, status: '완료', manager: '이담당', memo: '최종 정산 완료' },
+    { id: 3, name: 'R&D 기술개발', category: 'R&D', startDate: '2026-01-01', endDate: '2027-12-31', budget: 120000000, status: '진행중', manager: '박담당', memo: '중간보고서 작성 예정' }
+  ],
+  events: [
+    { id: 1, projectId: 1, title: '접근성 1차 심사 신청', type: '심사', date: '2026-05-15', status: '예정', memo: '담당자 연락 필요' },
+    { id: 2, projectId: 1, title: '접근성 갱신 최종 기한', type: '갱신', date: '2026-06-30', status: '예정', memo: '' },
+    { id: 3, projectId: 3, title: 'R&D 중간보고서 제출', type: '보고', date: '2026-07-31', status: '예정', memo: '' },
+    { id: 4, projectId: 2, title: '보조금 정산 완료', type: '정산', date: '2026-01-20', status: '완료', memo: '' }
+  ],
+  memos: [
+    { id: 1, title: '접근성 인증 준비 체크리스트', content: '- 기술문서 최신화\n- 담당자 연락처 확인\n- 이전 심사 피드백 검토\n- 신청서 양식 다운로드', createdAt: '2026-04-01', updatedAt: '2026-04-01' },
+    { id: 2, title: '보조금 신청 시 주의사항', content: '신청 전 사업자등록증 갱신 여부 확인.\n매출 증빙 서류는 최근 3개년치 준비.\n담당 공무원 연락처 저장해두기.', createdAt: '2026-03-15', updatedAt: '2026-04-10' }
+  ],
+  nextId: 20
+};
+
+let DB = loadDB();
+
+function loadDB() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return JSON.parse(JSON.stringify(defaultDB));
+}
+
+function saveDB() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(DB)); } catch(e) {}
+}
+
+// ─── 유틸 ─────────────────────────────────────────────
+function today() { return new Date().toISOString().split('T')[0]; }
+function dday(dateStr) { return Math.ceil((new Date(dateStr) - new Date(today())) / 864e5); }
+function fmtDate(d) { if (!d) return ''; const p = d.split('-'); return `${p[0]}. ${p[1]}. ${p[2]}`; }
+
+function ddayBadge(dateStr) {
+  const d = dday(dateStr);
+  if (d < 0)  return `<span class="dday dday-past">지남</span>`;
+  if (d === 0) return `<span class="dday dday-danger">D-day</span>`;
+  if (d <= 14) return `<span class="dday dday-danger">D-${d}</span>`;
+  if (d <= 30) return `<span class="dday dday-warn">D-${d}</span>`;
+  return `<span class="dday dday-ok">D-${d}</span>`;
+}
+
+function statusBadge(s) {
+  const m = { '진행중': 'badge-active', '완료': 'badge-done', '계획': 'badge-plan', '보류': 'badge-hold' };
+  return `<span class="badge ${m[s] || 'badge-plan'}">${s}</span>`;
+}
+
+function eventColorClass(dateStr, status) {
+  if (status === '완료') return 'cal-event-gray';
+  const d = dday(dateStr);
+  if (d < 0) return 'cal-event-gray';
+  if (d <= 14) return 'cal-event-red';
+  if (d <= 30) return 'cal-event-amber';
+  return 'cal-event-green';
+}
+
+function dotClass(dateStr, status) {
+  if (status === '완료') return 'dot-gray';
+  const d = dday(dateStr);
+  if (d < 0) return 'dot-gray';
+  if (d <= 14) return 'dot-red';
+  if (d <= 30) return 'dot-amber';
+  return 'dot-green';
+}
+
+function closeModal(e) { if (e.target === e.currentTarget) document.getElementById('modal-container').innerHTML = ''; }
+function closeModalForce() { document.getElementById('modal-container').innerHTML = ''; }
+
+// ─── 네비게이션 ─────────────────────────────────────────
+const PAGE_TITLES = { dashboard: '대시보드', projects: '사업 목록', schedule: '일정 관리', memos: '메모장' };
+
+function setNav(p) {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.textContent.trim() === PAGE_TITLES[p]);
+  });
+}
+
+function showPage(p) {
+  document.getElementById('page-title').textContent = PAGE_TITLES[p];
+  setNav(p);
+  const actions = document.getElementById('topbar-actions');
+  if (p === 'projects')  actions.innerHTML = `<button class="btn btn-primary" onclick="openAddProject()">+ 사업 추가</button>`;
+  else if (p === 'schedule') actions.innerHTML = `<button class="btn btn-primary" onclick="openAddEvent()">+ 일정 추가</button>`;
+  else if (p === 'memos')    actions.innerHTML = `<button class="btn btn-primary" onclick="openEditMemo(null)">+ 메모 추가</button>`;
+  else actions.innerHTML = '';
+  pages[p]();
+}
+
+// ─── 페이지 렌더 ─────────────────────────────────────────
+const pages = {
+
+  dashboard() {
+    const active = DB.projects.filter(p => p.status === '진행중').length;
+    const upcoming = DB.events.filter(e => e.status === '예정' && dday(e.date) >= 0 && dday(e.date) <= 30).length;
+    const overdue = DB.events.filter(e => e.status === '예정' && dday(e.date) < 0).length;
+    const sorted = [...DB.events].filter(e => e.status === '예정' && dday(e.date) >= 0)
+      .sort((a, b) => new Date(a.date) - new Date(b.date)).slice(0, 6);
+
+    document.getElementById('content').innerHTML = `
+      <div class="grid3">
+        <div class="metric"><div class="metric-label">진행중 사업</div><div class="metric-value">${active}건</div></div>
+        <div class="metric"><div class="metric-label">30일 내 일정</div><div class="metric-value">${upcoming}건</div></div>
+        <div class="metric"><div class="metric-label">기한 초과</div><div class="metric-value" style="color:#a32d2d">${overdue}건</div></div>
+      </div>
+      <div class="card">
+        <h3>다가오는 일정</h3>
+        ${sorted.length ? sorted.map(e => {
+          const proj = DB.projects.find(p => p.id === e.projectId);
+          return `<div class="event-row">
+            <div class="event-dot ${dotClass(e.date, e.status)}"></div>
+            <div style="flex:1">
+              <div style="font-weight:500">${e.title}</div>
+              <div style="font-size:11px;color:#888;margin-top:2px">${proj ? proj.name : ''} · ${e.type}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <span style="font-size:12px;color:#888">${fmtDate(e.date)}</span>
+              ${ddayBadge(e.date)}
+            </div>
+          </div>`;
+        }).join('') : '<div class="empty">예정된 일정이 없어요</div>'}
+      </div>
+      <div class="card">
+        <h3>진행중 사업</h3>
+        ${DB.projects.filter(p => p.status === '진행중').map(p => `
+          <div class="project-row" onclick="openProject(${p.id})">
+            <div style="flex:2;font-weight:500">${p.name}</div>
+            <div style="flex:1;color:#888;font-size:12px">${p.category}</div>
+            <div style="flex:1;color:#888;font-size:12px">${fmtDate(p.endDate)} 까지</div>
+            ${statusBadge(p.status)}
+          </div>`).join('')}
+      </div>`;
+  },
+
+  projects() {
+    document.getElementById('content').innerHTML = `
+      <div class="card" style="padding:0;overflow:hidden">
+        ${DB.projects.length ? DB.projects.map(p => `
+          <div class="project-row" style="padding:1rem 1.25rem;margin:0;border-radius:0" onclick="openProject(${p.id})">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+                <span style="font-weight:500;font-size:14px">${p.name}</span>
+                ${statusBadge(p.status)}
+                <span style="font-size:11px;color:#aaa">${p.category}</span>
+              </div>
+              <div style="display:flex;gap:16px;font-size:12px;color:#888">
+                <span>${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</span>
+                <span>예산 ${p.budget.toLocaleString()}원</span>
+                <span>담당 ${p.manager || '-'}</span>
+              </div>
+              ${p.memo ? `<div style="font-size:12px;color:#888;margin-top:6px;padding:6px 8px;background:#f5f5f3;border-radius:6px">${p.memo}</div>` : ''}
+            </div>
+          </div>`).join('') : '<div class="empty">등록된 사업이 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>'}
+      </div>`;
+  },
+
+  schedule() {
+    const activeView = window._scheduleView || 'list';
+    const activeTab  = window._scheduleTab  || '전체';
+
+    document.getElementById('content').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div class="tab-bar" style="margin:0">
+          ${['전체','예정','완료'].map(t => `<button class="tab ${t===activeTab?'active':''}" onclick="window._scheduleTab='${t}';pages.schedule()">${t}</button>`).join('')}
+        </div>
+        <div class="tab-bar" style="margin:0">
+          <button class="tab ${activeView==='list'?'active':''}" onclick="window._scheduleView='list';pages.schedule()">목록</button>
+          <button class="tab ${activeView==='cal'?'active':''}" onclick="window._scheduleView='cal';pages.schedule()">캘린더</button>
+        </div>
+      </div>
+      <div id="schedule-body"></div>`;
+
+    if (activeView === 'cal') {
+      renderCalendar();
+    } else {
+      renderScheduleList(activeTab);
+    }
+  },
+
+  memos() {
+    const memos = [...DB.memos].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    document.getElementById('content').innerHTML = memos.length
+      ? `<div class="memo-grid">${memos.map(m => `
+          <div class="memo-card" onclick="openViewMemo(${m.id})">
+            <div class="memo-title">${m.title || '제목 없음'}</div>
+            <div class="memo-preview">${m.content.replace(/\n/g, ' ')}</div>
+            <div class="memo-date">${fmtDate(m.updatedAt)}</div>
+          </div>`).join('')}</div>`
+      : '<div class="empty" style="margin-top:3rem">메모가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>';
+  }
+};
+
+// ─── 일정 목록 렌더 ─────────────────────────────────────
+function renderScheduleList(tab) {
+  let evts = [...DB.events];
+  if (tab === '예정') evts = evts.filter(e => e.status === '예정');
+  if (tab === '완료') evts = evts.filter(e => e.status === '완료');
+  evts.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  document.getElementById('schedule-body').innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden">
+      ${evts.length ? evts.map(e => {
+        const proj = DB.projects.find(p => p.id === e.projectId);
+        return `<div style="padding:1rem 1.25rem;border-bottom:1px solid #f0f0ee;display:flex;align-items:flex-start;gap:12px">
+          <div style="min-width:72px;font-size:12px;color:#888;padding-top:3px">${fmtDate(e.date)}</div>
+          <div style="flex:1">
+            <div style="font-weight:500;margin-bottom:3px">${e.title}</div>
+            <div style="font-size:12px;color:#888">${proj ? proj.name : ''} · <span style="background:#f0f0ee;padding:1px 6px;border-radius:4px">${e.type}</span></div>
+            ${e.memo ? `<div style="font-size:12px;color:#888;margin-top:4px">${e.memo}</div>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            ${e.status === '예정' ? ddayBadge(e.date) : statusBadge(e.status)}
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm" onclick="openEditEvent(${e.id})">수정</button>
+              ${e.status === '예정' ? `<button class="btn btn-sm" onclick="completeEvent(${e.id})">완료</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty">일정이 없어요</div>'}
+    </div>`;
+}
+
+// ─── 캘린더 렌더 ─────────────────────────────────────────
+let calYear, calMonth;
+
+function renderCalendar() {
+  const now = new Date();
+  if (calYear  === undefined) calYear  = now.getFullYear();
+  if (calMonth === undefined) calMonth = now.getMonth();
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay  = new Date(calYear, calMonth + 1, 0);
+  const startDow = firstDay.getDay(); // 0=일
+  const daysInMonth = lastDay.getDate();
+  const todayStr = today();
+
+  // 이 달의 이벤트 인덱스
+  const monthStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
+  const monthEvents = DB.events.filter(e => e.date.startsWith(monthStr));
+
+  let cells = '';
+  // 이전 달 빈칸
+  const prevLast = new Date(calYear, calMonth, 0).getDate();
+  for (let i = startDow - 1; i >= 0; i--) {
+    cells += `<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc">${prevLast - i}</span></div>`;
+  }
+  // 이번 달
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isToday = dateStr === todayStr;
+    const dayEvents = monthEvents.filter(e => e.date === dateStr);
+    cells += `<div class="cal-cell${isToday ? ' today' : ''}">
+      <span class="cal-day">${d}</span>
+      ${dayEvents.map(e => {
+        const cc = eventColorClass(e.date, e.status);
+        return `<div class="cal-event ${cc}" onclick="quickViewEvent(${e.id})" title="${e.title}">${e.title}</div>`;
+      }).join('')}
+    </div>`;
+  }
+  // 다음 달 빈칸
+  const totalCells = startDow + daysInMonth;
+  const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+  for (let i = 1; i <= remaining; i++) {
+    cells += `<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc">${i}</span></div>`;
+  }
+
+  const monthLabel = new Date(calYear, calMonth).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' });
+
+  document.getElementById('schedule-body').innerHTML = `
+    <div class="card">
+      <div class="cal-nav">
+        <button onclick="calMove(-1)">◀</button>
+        <h3>${monthLabel}</h3>
+        <button onclick="calMove(1)">▶</button>
+      </div>
+      <div class="cal-grid">
+        ${['일','월','화','수','목','금','토'].map(d => `<div class="cal-dow">${d}</div>`).join('')}
+        ${cells}
+      </div>
+    </div>`;
+}
+
+function calMove(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+
+function quickViewEvent(id) {
+  const e = DB.events.find(x => x.id === id);
+  if (!e) return;
+  const proj = DB.projects.find(p => p.id === e.projectId);
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" style="width:360px">
+      <h3>${e.title}</h3>
+      <div style="font-size:13px;color:#555;margin-bottom:1rem;line-height:1.8">
+        <div>날짜: ${fmtDate(e.date)} &nbsp; ${e.status === '예정' ? ddayBadge(e.date) : statusBadge(e.status)}</div>
+        <div>유형: ${e.type}</div>
+        ${proj ? `<div>사업: ${proj.name}</div>` : ''}
+        ${e.memo ? `<div style="margin-top:6px;padding:8px;background:#f5f5f3;border-radius:6px">${e.memo}</div>` : ''}
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModalForce()">닫기</button>
+        <button class="btn btn-primary" onclick="closeModalForce();openEditEvent(${e.id})">수정</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─── 사업 CRUD ─────────────────────────────────────────
+function openProject(id) {
+  const p = DB.projects.find(x => x.id === id);
+  if (!p) return;
+  const relEvents = DB.events.filter(e => e.projectId === id);
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        <h3 style="flex:1;margin:0">${p.name}</h3>${statusBadge(p.status)}
+      </div>
+      <div class="grid2" style="margin-bottom:1rem">
+        <div class="metric"><div class="metric-label">분류</div><div style="font-size:15px;font-weight:600">${p.category}</div></div>
+        <div class="metric"><div class="metric-label">담당자</div><div style="font-size:15px;font-weight:600">${p.manager || '-'}</div></div>
+        <div class="metric"><div class="metric-label">기간</div><div style="font-size:12px;font-weight:500;padding-top:2px">${fmtDate(p.startDate)} ~ ${fmtDate(p.endDate)}</div></div>
+        <div class="metric"><div class="metric-label">예산</div><div style="font-size:13px;font-weight:600;padding-top:2px">${p.budget.toLocaleString()}원</div></div>
+      </div>
+      ${p.memo ? `<div style="background:#f5f5f3;border-radius:8px;padding:.75rem;font-size:13px;margin-bottom:1rem;white-space:pre-wrap;line-height:1.7">${p.memo}</div>` : ''}
+      ${relEvents.length ? `
+        <div style="font-size:12px;color:#888;font-weight:500;margin-bottom:.5rem">관련 일정</div>
+        ${relEvents.map(e => `
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0ee;font-size:13px">
+            <span>${e.title}</span>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="color:#888;font-size:12px">${fmtDate(e.date)}</span>
+              ${e.status === '예정' ? ddayBadge(e.date) : statusBadge(e.status)}
+            </div>
+          </div>`).join('')}` : ''}
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="deleteProject(${id})">삭제</button>
+        <button class="btn" onclick="closeModalForce()">닫기</button>
+        <button class="btn btn-primary" onclick="openEditProject(${id})">수정</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openAddProject() { _projectForm(null); }
+function openEditProject(id) { closeModalForce(); _projectForm(id); }
+
+function _projectForm(id) {
+  const p = id ? DB.projects.find(x => x.id === id) : null;
+  const cats = ['인증','보조금','R&D','용역','기타'];
+  const statuses = ['진행중','계획','완료','보류'];
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal">
+      <h3>${p ? '사업 수정' : '새 사업 추가'}</h3>
+      <div class="form-group"><label>사업명</label><input id="f-name" placeholder="예: 접근성 인증 갱신" value="${p ? p.name : ''}"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>분류</label><select id="f-cat">${cats.map(c => `<option ${p && c===p.category?'selected':''}>${c}</option>`).join('')}</select></div>
+        <div class="form-group"><label>상태</label><select id="f-status">${statuses.map(s => `<option ${p && s===p.status?'selected':''}>${s}</option>`).join('')}</select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>시작일</label><input id="f-start" type="date" value="${p ? p.startDate : ''}"/></div>
+        <div class="form-group"><label>종료일</label><input id="f-end" type="date" value="${p ? p.endDate : ''}"/></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>예산 (원)</label><input id="f-budget" type="number" value="${p ? p.budget : ''}"/></div>
+        <div class="form-group"><label>담당자</label><input id="f-manager" value="${p ? p.manager : ''}"/></div>
+      </div>
+      <div class="form-group"><label>메모</label><textarea id="f-memo">${p ? p.memo : ''}</textarea></div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModalForce()">취소</button>
+        <button class="btn btn-primary" onclick="saveProject(${id || 'null'})">${p ? '저장' : '추가'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function saveProject(id) {
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) return alert('사업명을 입력해주세요');
+  const data = {
+    name,
+    category: document.getElementById('f-cat').value,
+    status:   document.getElementById('f-status').value,
+    startDate:document.getElementById('f-start').value,
+    endDate:  document.getElementById('f-end').value,
+    budget:   parseInt(document.getElementById('f-budget').value) || 0,
+    manager:  document.getElementById('f-manager').value,
+    memo:     document.getElementById('f-memo').value
+  };
+  if (id) {
+    Object.assign(DB.projects.find(p => p.id === id), data);
+  } else {
+    DB.projects.push({ id: DB.nextId++, ...data });
+  }
+  saveDB(); closeModalForce(); showPage('projects');
+}
+
+function deleteProject(id) {
+  if (!confirm('사업을 삭제하면 관련 일정도 삭제됩니다. 계속할까요?')) return;
+  DB.projects = DB.projects.filter(p => p.id !== id);
+  DB.events   = DB.events.filter(e => e.projectId !== id);
+  saveDB(); closeModalForce(); showPage('projects');
+}
+
+// ─── 일정 CRUD ─────────────────────────────────────────
+function openAddEvent() { _eventForm(null); }
+function openEditEvent(id) { _eventForm(id); }
+
+function _eventForm(id) {
+  const e = id ? DB.events.find(x => x.id === id) : null;
+  const types = ['심사','갱신','보고','정산','신청','회의','기타'];
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal">
+      <h3>${e ? '일정 수정' : '일정 추가'}</h3>
+      <div class="form-group"><label>일정명</label><input id="e-title" placeholder="예: 접근성 1차 심사 신청" value="${e ? e.title : ''}"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>관련 사업</label>
+          <select id="e-proj">
+            <option value="">없음</option>
+            ${DB.projects.map(p => `<option value="${p.id}" ${e && p.id===e.projectId?'selected':''}>${p.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>유형</label>
+          <select id="e-type">${types.map(t => `<option ${e && t===e.type?'selected':''}>${t}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="form-group"><label>날짜</label><input id="e-date" type="date" value="${e ? e.date : ''}"/></div>
+      <div class="form-group"><label>메모</label><textarea id="e-memo" placeholder="준비사항, 주의사항 등">${e ? e.memo : ''}</textarea></div>
+      <div class="modal-footer">
+        ${e ? `<button class="btn btn-danger" onclick="deleteEvent(${id})">삭제</button>` : ''}
+        <button class="btn" onclick="closeModalForce()">취소</button>
+        <button class="btn btn-primary" onclick="saveEvent(${id || 'null'})">${e ? '저장' : '추가'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function saveEvent(id) {
+  const title = document.getElementById('e-title').value.trim();
+  if (!title) return alert('일정명을 입력해주세요');
+  const data = {
+    title,
+    projectId: parseInt(document.getElementById('e-proj').value) || null,
+    type:  document.getElementById('e-type').value,
+    date:  document.getElementById('e-date').value,
+    memo:  document.getElementById('e-memo').value,
+    status: id ? DB.events.find(e => e.id === id).status : '예정'
+  };
+  if (id) {
+    Object.assign(DB.events.find(e => e.id === id), data);
+  } else {
+    DB.events.push({ id: DB.nextId++, ...data });
+  }
+  saveDB(); closeModalForce(); showPage('schedule');
+}
+
+function completeEvent(id) {
+  DB.events.find(e => e.id === id).status = '완료';
+  saveDB(); showPage('schedule');
+}
+
+function deleteEvent(id) {
+  if (!confirm('일정을 삭제할까요?')) return;
+  DB.events = DB.events.filter(e => e.id !== id);
+  saveDB(); closeModalForce(); showPage('schedule');
+}
+
+// ─── 메모 CRUD ─────────────────────────────────────────
+function openViewMemo(id) {
+  const m = DB.memos.find(x => x.id === id);
+  if (!m) return;
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h3 style="margin:0">${m.title || '제목 없음'}</h3>
+        <span style="font-size:11px;color:#bbb">${fmtDate(m.updatedAt)}</span>
+      </div>
+      <div style="font-size:13px;line-height:1.8;white-space:pre-wrap;background:#f5f5f3;padding:1rem;border-radius:8px;min-height:100px">${m.content}</div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="deleteMemo(${id})">삭제</button>
+        <button class="btn" onclick="closeModalForce()">닫기</button>
+        <button class="btn btn-primary" onclick="closeModalForce();openEditMemo(${id})">수정</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openEditMemo(id) {
+  const m = id ? DB.memos.find(x => x.id === id) : null;
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal">
+      <h3>${m ? '메모 수정' : '새 메모'}</h3>
+      <div class="form-group"><label>제목</label><input id="m-title" placeholder="메모 제목" value="${m ? m.title : ''}"/></div>
+      <div class="form-group"><label>내용</label><textarea id="m-content" style="min-height:160px">${m ? m.content : ''}</textarea></div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModalForce()">취소</button>
+        <button class="btn btn-primary" onclick="saveMemo(${id || 'null'})">${m ? '저장' : '추가'}</button>
+      </div>
+    </div>
+  </div>`;
+  setTimeout(() => document.getElementById('m-content').focus(), 50);
+}
+
+function saveMemo(id) {
+  const content = document.getElementById('m-content').value.trim();
+  if (!content) return alert('내용을 입력해주세요');
+  const title = document.getElementById('m-title').value.trim();
+  const now = today();
+  if (id) {
+    const m = DB.memos.find(x => x.id === id);
+    m.title = title; m.content = content; m.updatedAt = now;
+  } else {
+    DB.memos.push({ id: DB.nextId++, title, content, createdAt: now, updatedAt: now });
+  }
+  saveDB(); closeModalForce(); showPage('memos');
+}
+
+function deleteMemo(id) {
+  if (!confirm('메모를 삭제할까요?')) return;
+  DB.memos = DB.memos.filter(m => m.id !== id);
+  saveDB(); closeModalForce(); showPage('memos');
+}
+
+// ─── 초기화 ─────────────────────────────────────────────
+document.getElementById('today-date').textContent =
+  new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+
+showPage('dashboard');
+</script>
+</body>
+</html>
