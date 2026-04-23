@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>사업 관리 시스템 v3 (Full DB 연동)</title>
+<title>사업 관리 시스템 Pro (Supabase 연동)</title>
 <style>
-  /* (디자인 가독성을 위해 form-preview.html의 스타일과 index.html을 조합했습니다) */
+  /* 1. 디자인: form-preview.html의 스타일을 그대로 가져왔습니다 */
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 13px; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 14px; }
   .app { display: flex; height: 100vh; }
   .sidebar { width: 220px; background: #fff; border-right: 1px solid #e8e8e6; display: flex; flex-direction: column; padding: 1rem 0; }
   .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -15,19 +15,19 @@
   .content { flex: 1; overflow-y: auto; padding: 1.5rem; }
   .nav-item { padding: 10px 1rem; cursor: pointer; color: #666; border-radius: 6px; margin: 0 0.5rem; }
   .nav-item.active { background: #f0effe; color: #7F77DD; font-weight: 600; }
-  .card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
-  .btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #d0d0cc; background: #fff; cursor: pointer; font-size: 13px; }
-  .btn-primary { background: #7F77DD; color: #fff; border: none; }
-  
-  /* 모달 내 상세 양식 스타일 */
+
+  /* 모달 레이아웃 (form-preview와 동일) */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-  .modal { background: #fff; width: 700px; max-height: 90vh; overflow-y: auto; border-radius: 16px; padding: 2rem; }
+  .modal { background: #fff; width: 680px; max-height: 90vh; overflow-y: auto; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
   .section-title { font-size: 11px; font-weight: 700; color: #7F77DD; text-transform: uppercase; margin-bottom: 1rem; border-bottom: 1px solid #f0f0ee; padding-bottom: 5px; }
   .form-group { margin-bottom: 12px; }
   .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
-  input, select, textarea { width: 100%; padding: 8px; border: 1px solid #d0d0cc; border-radius: 6px; font-size: 13px; }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .contact-block { background: #f9f9f7; border: 1px solid #eee; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+  input, select, textarea { width: 100%; padding: 8px 10px; border: 1px solid #d0d0cc; border-radius: 8px; font-size: 13px; outline: none; }
+  input:focus { border-color: #7F77DD; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .btn { padding: 8px 20px; border-radius: 8px; border: 1px solid #d0d0cc; background: #fff; cursor: pointer; }
+  .btn-primary { background: #7F77DD; color: #fff; border: none; }
 </style>
 </head>
 <body>
@@ -52,7 +52,6 @@
 <script>
   let DB = { projects: [] };
 
-  // --- 페이지 전환 ---
   function showPage(p) {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.getElementById('page-title').textContent = (p === 'dashboard' ? '대시보드' : '사업 목록');
@@ -62,12 +61,7 @@
 
   function renderDashboard() {
     const total = DB.projects.length;
-    const ing = DB.projects.filter(p => p.status === '진행중').length;
-    document.getElementById('content').innerHTML = `
-      <div class="form-row">
-        <div class="card"><h3>전체 사업</h3><h1>${total}건</h1></div>
-        <div class="card"><h3>진행 중</h3><h1>${ing}건</h1></div>
-      </div>`;
+    document.getElementById('content').innerHTML = `<div class="card" style="background:#fff; padding:20px; border-radius:12px; border:1px solid #eee;"><h3>전체 사업 수</h3><h1>${total}건</h1></div>`;
   }
 
   function renderProjects() {
@@ -75,31 +69,31 @@
       <div style="text-align:right; margin-bottom:1rem;">
         <button class="btn btn-primary" onclick="openFullModal()">+ 새 사업 등록</button>
       </div>
-      <div class="card">
-        <table style="width:100%; border-collapse:collapse;">
-          <thead><tr style="text-align:left; color:#888;"><th>기관</th><th>사업명</th><th>상태</th><th>종료일</th><th>관리</th></tr></thead>
-          <tbody>
-            ${DB.projects.map(p => `
-              <tr style="border-top:1px solid #eee;">
-                <td style="padding:10px 0;">${p.org_name || '-'}</td>
-                <td><strong>${p.name}</strong></td>
-                <td>${p.status}</td>
-                <td>${p.due_date || '-'}</td>
-                <td><button class="btn" onclick="openFullModal(${p.id})">상세/수정</button></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>`;
+      <table style="width:100%; border-collapse:collapse; background:#fff; border-radius:12px; overflow:hidden;">
+        <thead style="background:#f9f9f7;"><tr style="text-align:left;">
+          <th style="padding:12px;">발주기관</th><th style="padding:12px;">사업명</th><th style="padding:12px;">시작일</th><th style="padding:12px;">상태</th><th style="padding:12px;">관리</th>
+        </tr></thead>
+        <tbody>
+          ${DB.projects.map(p => `
+            <tr style="border-top:1px solid #eee;">
+              <td style="padding:12px;">${p.org_name || '-'}</td>
+              <td style="padding:12px;"><strong>${p.name}</strong></td>
+              <td style="padding:12px;">${p.start_date || '-'}</td>
+              <td style="padding:12px;">${p.status}</td>
+              <td style="padding:12px;"><button class="btn" onclick="openFullModal(${p.id})">상세/수정</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
   }
 
-  // --- SQL Editor 18개 컬럼 대응 모달 ---
+  // --- SQL Editor 18개 컬럼 대응 모달 (디자인 통합) ---
   function openFullModal(id = null) {
     const p = id ? DB.projects.find(x => x.id === id) : null;
     document.getElementById('modal-container').innerHTML = `
       <div class="modal-overlay" onclick="if(event.target===this) this.remove()">
         <div class="modal">
-          <h2 style="margin-bottom:1.5rem;">${p ? '사업 상세 정보' : '새 사업 등록'}</h2>
+          <h2 style="margin-bottom:1.5rem;">${p ? '사업 상세 수정' : '새 사업 등록'}</h2>
           
           <div class="section-title">기본 정보</div>
           <div class="form-row">
@@ -113,7 +107,7 @@
           </div>
           <div class="form-row">
             <div class="form-group"><label>진행상태</label><select id="f-status"><option ${p?.status==='진행중'?'selected':''}>진행중</option><option ${p?.status==='완료'?'selected':''}>완료</option></select></div>
-            <div class="form-group"><label>종료일</label><input type="date" id="f-due" value="${p?.due_date||''}"></div>
+            <div class="form-group"><label>시작일</label><input type="date" id="f-start" value="${p?.start_date||''}"></div> <div class="form-group"><label>종료일</label><input type="date" id="f-due" value="${p?.due_date||''}"></div>
           </div>
 
           <div class="section-title">예산 및 담당자</div>
@@ -126,7 +120,7 @@
           <div class="form-group"><label>비고</label><textarea id="f-memo">${p?.memo||''}</textarea></div>
           <div class="form-group"><label>진행현황</label><textarea id="f-progress">${p?.progress||''}</textarea></div>
 
-          <div style="text-align:right; margin-top:1rem;">
+          <div class="footer">
             <button class="btn" onclick="document.getElementById('modal-container').innerHTML=''">취소</button>
             <button class="btn btn-primary" onclick="saveData(${id})">DB에 저장하기</button>
           </div>
@@ -142,6 +136,7 @@
       sys_type: document.getElementById('f-sys').value,
       project_type: document.getElementById('f-type').value,
       status: document.getElementById('f-status').value,
+      start_date: document.getElementById('f-start').value, // 시작일 저장
       due_date: document.getElementById('f-due').value,
       budget_vat: parseInt(document.getElementById('f-budget').value) || 0,
       pm_name: document.getElementById('f-pm').value,
@@ -151,39 +146,34 @@
 
     if (id) projectData.id = id;
 
-    // Supabase 전송 함수 호출
     if (window.saveToSupabase) {
       await window.saveToSupabase(projectData);
       document.getElementById('modal-container').innerHTML = '';
     }
   }
-
-  showPage('dashboard');
 </script>
 
 <script type="module">
   import { createClient } from 'https://jspm.dev/@supabase/supabase-js'
 
-  const supabaseUrl = 'https://isgzupwfjmafaiujbkkz.supabase.co/rest/v1/'; 
+  const supabaseUrl = 'https://isgzupwfjmafaiujbkkz.supabase.co'; 
   const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZ3p1cHdmam1hZmFpdWpia2t6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4OTA4NjksImV4cCI6MjA5MjQ2Njg2OX0.l7BmUVw24HC322fbFX4av_4pU0Zd4j92nm_xfGtmpS4';
   const supabase = createClient(supabaseUrl, supabaseKey);
 
   window.supabase = supabase;
   const statusEl = document.getElementById('sync-status');
 
-  // 데이터 로드
   async function loadDB() {
     const { data, error } = await supabase.from('projects').select('*').order('id', { ascending: false });
     if (data) {
       DB.projects = data;
       statusEl.textContent = '☁️ DB 동기화 완료';
-      renderDashboard();
+      showPage('dashboard');
     } else {
       statusEl.textContent = '❌ 연결 실패';
     }
   }
 
-  // 데이터 저장
   window.saveToSupabase = async function(obj) {
     statusEl.textContent = '⏳ 저장 중...';
     const { error } = await supabase.from('projects').upsert([obj]);
