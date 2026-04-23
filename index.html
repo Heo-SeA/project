@@ -3,58 +3,192 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>사업 관리 시스템 Pro</title>
+<title>사업 관리</title>
 <style>
-  /* 1. form-preview.html의 디자인 시스템을 그대로 이식했습니다 */
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 14px; }
-  .app { display: flex; height: 100vh; }
-  
-  /* 사이드바 스타일 */
-  .sidebar { width: 220px; background: #fff; border-right: 1px solid #e8e8e6; display: flex; flex-direction: column; padding: 1rem 0; }
-  .nav-item { padding: 10px 1.25rem; cursor: pointer; color: #666; border-radius: 8px; margin: 0 0.5rem 4px; transition: 0.2s; }
-  .nav-item.active { background: #f0effe; color: #7F77DD; font-weight: 600; }
-  
-  /* 메인 영역 */
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .topbar { padding: 1rem 1.5rem; border-bottom: 1px solid #e8e8e6; background: #fff; display: flex; align-items: center; justify-content: space-between; }
-  .content { flex: 1; overflow-y: auto; padding: 2rem; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 14px; }
 
-  /* form-preview.html 스타일 재현 */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-  .modal { background: #fff; width: 640px; max-height: 85vh; overflow-y: auto; border-radius: 16px; padding: 2rem; box-shadow: 0 10px 40px rgba(0,0,0,0.15); }
-  .section { border: 1px solid #e8e8e6; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; background: #fff; }
-  .section-title { font-size: 11px; font-weight: 700; color: #7F77DD; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 1.25rem; border-bottom: 1px solid #f0f0ee; padding-bottom: 8px; }
-  
-  .form-group { margin-bottom: 12px; }
-  .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; font-weight: 500; }
-  input, select, textarea { width: 100%; padding: 10px; border: 1px solid #d0d0cc; border-radius: 8px; font-size: 13px; outline: none; transition: 0.2s; }
-  input:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127,119,221,0.1); }
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  
-  .btn { padding: 10px 20px; border-radius: 8px; border: 1px solid #d0d0cc; background: #fff; cursor: pointer; font-weight: 500; }
-  .btn-primary { background: #7F77DD; color: #fff; border: none; }
-  .btn-primary:hover { background: #6a62c4; }
+/* ── 레이아웃 ── */
+.app { display: flex; height: 100vh; }
+.sidebar { width: 220px; min-width: 220px; background: #fff; border-right: 1px solid #e8e8e6; display: flex; flex-direction: column; padding: 1rem 0; }
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.topbar { padding: 1rem 1.5rem; border-bottom: 1px solid #e8e8e6; background: #fff; display: flex; align-items: center; justify-content: space-between; }
+.topbar h2 { font-size: 16px; font-weight: 500; }
+.content { flex: 1; overflow-y: auto; padding: 1.5rem; }
 
-  /* 목록 테이블 스타일 */
-  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; border: 1px solid #e8e8e6; }
-  th { background: #f9f9f7; padding: 12px; font-size: 12px; color: #888; text-align: left; }
-  td { padding: 14px 12px; border-top: 1px solid #f0f0ee; }
+/* ── 사이드바 ── */
+.sidebar-logo { padding: 0 1rem 1rem; border-bottom: 1px solid #e8e8e6; margin-bottom: .5rem; }
+.sidebar-logo h1 { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+.sidebar-logo p { font-size: 11px; color: #888; margin-top: 2px; }
+.nav-section { font-size: 10px; color: #aaa; padding: .75rem 1rem 4px; text-transform: uppercase; letter-spacing: .06em; }
+.nav-item { padding: 8px 1rem; font-size: 13px; cursor: pointer; color: #555; border-left: 2px solid transparent; transition: all .12s; }
+.nav-item:hover { background: #f5f5f3; color: #1a1a1a; }
+.nav-item.active { color: #1a1a1a; border-left: 2px solid #7F77DD; background: #f0effe; font-weight: 500; }
+
+/* ── 버튼 ── */
+.btn { padding: 6px 14px; font-size: 13px; border: 1px solid #d0d0cc; border-radius: 8px; background: transparent; color: #1a1a1a; cursor: pointer; font-family: inherit; transition: background .12s; }
+.btn:hover { background: #f5f5f3; }
+.btn-primary { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+.btn-primary:hover { background: #534AB7; border-color: #534AB7; }
+.btn-primary:disabled { background: #b0aae8; border-color: #b0aae8; cursor: not-allowed; }
+.btn-danger { color: #a32d2d; border-color: #f09595; }
+.btn-danger:hover { background: #fcebeb; }
+.btn-sm { padding: 3px 8px; font-size: 11px; }
+
+/* ── 카드 ── */
+.card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+.card h3 { font-size: 13px; font-weight: 500; margin-bottom: .75rem; color: #555; }
+
+/* ── 메트릭 ── */
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 1rem; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.metric { background: #f5f5f3; border-radius: 8px; padding: .75rem 1rem; }
+.metric-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+.metric-value { font-size: 22px; font-weight: 600; }
+
+/* ── 배지 ── */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+.badge-active { background: #e1f5ee; color: #0f6e56; }
+.badge-done   { background: #faece7; color: #993c1d; }
+.badge-plan   { background: #e6f1fb; color: #185fa5; }
+.badge-hold   { background: #faeeda; color: #854f0b; }
+.badge-haza   { background: #fbeaf0; color: #993556; }
+.dday { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.dday-danger { background: #fcebeb; color: #a32d2d; }
+.dday-warn   { background: #faeeda; color: #854f0b; }
+.dday-ok     { background: #eaf3de; color: #3b6d11; }
+.dday-past   { background: #f0f0ee; color: #888; }
+.biz-proj  { font-size: 10px; padding: 2px 7px; border-radius: 999px; background: #f0effe; color: #534AB7; font-weight: 500; }
+.biz-maint { font-size: 10px; padding: 2px 7px; border-radius: 999px; background: #e1f5ee; color: #0f6e56; font-weight: 500; }
+
+/* ── 행 ── */
+.event-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0ee; font-size: 13px; }
+.event-row:last-child { border-bottom: none; }
+.event-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.dot-red { background: #e24b4a; } .dot-amber { background: #ef9f27; } .dot-green { background: #639922; } .dot-gray { background: #ccc; }
+.project-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0ee; font-size: 13px; cursor: pointer; }
+.project-row:last-child { border-bottom: none; }
+.project-row:hover { background: #fafaf9; }
+
+/* ── 폼 기본 ── */
+.form-group { margin-bottom: 12px; }
+.form-group:last-child { margin-bottom: 0; }
+.form-group label { font-size: 12px; color: #666; display: block; margin-bottom: 4px; }
+.req { color: #e24b4a; margin-left: 2px; }
+.form-row  { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+input, select, textarea { width: 100%; padding: 8px 10px; font-size: 13px; border: 1px solid #d0d0cc; border-radius: 8px; background: #fff; color: #1a1a1a; font-family: inherit; outline: none; transition: border-color .15s; }
+input:focus, select:focus, textarea:focus { border-color: #7F77DD; box-shadow: 0 0 0 3px rgba(127,119,221,.1); }
+input[readonly] { background: #f5f5f3; color: #888; cursor: default; }
+input[readonly]:focus { border-color: #d0d0cc; box-shadow: none; }
+textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
+.hint { font-size: 11px; color: #aaa; margin-top: 3px; line-height: 1.5; }
+
+/* ── 모달 ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: #fff; border-radius: 14px; padding: 1.5rem; width: 660px; max-width: 96vw; max-height: 88vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,.12); }
+.modal > h3 { font-size: 15px; font-weight: 600; margin-bottom: 1.25rem; }
+.modal-footer { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #f0f0ee; }
+
+/* ── 탭 ── */
+.tab-bar { display: flex; gap: 4px; margin-bottom: 1rem; }
+.tab { padding: 6px 14px; font-size: 12px; border: 1px solid #d0d0cc; border-radius: 8px; cursor: pointer; background: transparent; color: #666; font-family: inherit; transition: all .12s; }
+.tab:hover { background: #f5f5f3; }
+.tab.active { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+
+/* ── 메모 ── */
+.memo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.memo-card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1rem 1.25rem; cursor: pointer; transition: border-color .12s; }
+.memo-card:hover { border-color: #b0aae8; }
+.memo-title { font-size: 13px; font-weight: 500; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.memo-preview { font-size: 12px; color: #888; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.memo-date { font-size: 11px; color: #bbb; margin-top: 8px; }
+
+/* ── 캘린더 ── */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.cal-nav h3 { font-size: 15px; font-weight: 500; }
+.cal-nav button { padding: 4px 12px; font-size: 13px; border: 1px solid #d0d0cc; border-radius: 8px; background: transparent; cursor: pointer; font-family: inherit; }
+.cal-nav button:hover { background: #f5f5f3; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid #e8e8e6; border-radius: 12px; overflow: hidden; }
+.cal-dow { background: #f5f5f3; padding: 8px 4px; text-align: center; font-size: 11px; color: #888; font-weight: 500; border-bottom: 1px solid #e8e8e6; }
+.cal-cell { min-height: 90px; padding: 6px; border-right: 1px solid #f0f0ee; border-bottom: 1px solid #f0f0ee; background: #fff; }
+.cal-cell:nth-child(7n) { border-right: none; }
+.cal-cell.other-month { background: #fafaf9; }
+.cal-cell.today { background: #f0effe; }
+.cal-day { font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; }
+.cal-cell.today .cal-day { background: #7F77DD; color: #fff; }
+.cal-event { font-size: 10px; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.cal-event-red   { background: #fcebeb; color: #a32d2d; }
+.cal-event-amber { background: #faeeda; color: #854f0b; }
+.cal-event-green { background: #eaf3de; color: #3b6d11; }
+.cal-event-gray  { background: #f0f0ee; color: #666; }
+
+/* ── 사업 등록 폼 전용 ── */
+.f-section { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+.f-section-title { font-size: 11px; font-weight: 600; color: #7F77DD; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 1rem; padding-bottom: .5rem; border-bottom: 1px solid #f0f0ee; }
+.type-row { display: flex; gap: 10px; margin-top: 4px; }
+.type-tag { flex: 1; text-align: center; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 500; border: 1.5px solid #d0d0cc; cursor: pointer; color: #888; background: #fff; transition: all .15s; user-select: none; }
+.type-tag.on.tp-proj  { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+.type-tag.on.tp-maint { background: #1D9E75; color: #fff; border-color: #1D9E75; }
+.type-tag:hover:not(.on) { background: #f5f5f3; border-color: #bbb; }
+.ftag-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ftag { display: inline-block; padding: 5px 12px; border-radius: 999px; font-size: 12px; border: 1px solid #d0d0cc; cursor: pointer; color: #555; background: #fff; transition: all .12s; user-select: none; }
+.ftag.on { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+.ftag:hover:not(.on) { background: #f0effe; border-color: #b0aae8; }
+.direct-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.di-select { width: 170px; flex-shrink: 0; }
+.di-custom { flex: 1; min-width: 0; display: none; }
+.di-amount { width: 120px; flex-shrink: 0; }
+.di-note   { width: 110px; flex-shrink: 0; }
+.contact-block { background: #f9f9f7; border-radius: 8px; padding: .75rem 1rem; margin-bottom: 8px; border: 1px solid #ebebea; }
+.contact-lbl { font-size: 11px; color: #aaa; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.event-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.ev-select { flex: 1; min-width: 0; }
+.ev-custom { flex: 1; min-width: 0; display: none; }
+.ev-date   { width: 148px; flex-shrink: 0; }
+.del-x { font-size: 19px; color: #ccc; cursor: pointer; background: none; border: none; flex-shrink: 0; line-height: 1; padding: 0 2px; font-family: inherit; }
+.del-x:hover { color: #e24b4a; }
+.del-txt { font-size: 12px; color: #bbb; cursor: pointer; background: none; border: none; font-family: inherit; padding: 0; }
+.del-txt:hover { color: #e24b4a; }
+.add-link { font-size: 12px; color: #7F77DD; cursor: pointer; background: none; border: none; font-family: inherit; padding: 4px 0; margin-top: 2px; display: inline-block; }
+.add-link:hover { text-decoration: underline; }
+.save-stat { font-size: 12px; padding: 5px 10px; border-radius: 8px; display: none; }
+.save-stat.ok      { background: #e1f5ee; color: #0f6e56; display: inline-block; }
+.save-stat.err     { background: #fcebeb; color: #a32d2d; display: inline-block; }
+.save-stat.loading { background: #f5f5f3; color: #888;   display: inline-block; }
+
+.empty { text-align: center; padding: 3rem; color: #aaa; font-size: 13px; line-height: 1.8; }
+.db-status { font-size: 11px; color: #999; background: #f0f0ee; padding: 4px 10px; border-radius: 4px; }
+
+@media (max-width: 640px) {
+  .sidebar { display: none; }
+  .grid3 { grid-template-columns: 1fr 1fr; }
+  .cal-cell { min-height: 60px; }
+}
 </style>
 </head>
 <body>
 
 <div class="app">
   <div class="sidebar">
-    <div style="padding: 0 1.25rem 1.5rem; font-weight: 800; font-size: 18px; color: #7F77DD;">PMS System</div>
+    <div class="sidebar-logo">
+      <h1>사업 관리</h1>
+      <p id="today-date"></p>
+    </div>
+    <div class="nav-section">메뉴</div>
     <div class="nav-item active" onclick="showPage('dashboard')">대시보드</div>
     <div class="nav-item" onclick="showPage('projects')">사업 목록</div>
+    <div class="nav-item" onclick="showPage('schedule')">일정 관리</div>
+    <div class="nav-item" onclick="showPage('memos')">메모장</div>
   </div>
-  
+
   <div class="main">
     <div class="topbar">
       <h2 id="page-title">대시보드</h2>
-      <span id="sync-status" style="font-size: 11px; color: #999; background: #f0f0ee; padding: 4px 8px; border-radius: 4px;">상태 확인 중...</span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="db-status" id="db-status">연결 중...</span>
+        <div id="topbar-actions"></div>
+      </div>
     </div>
     <div class="content" id="content"></div>
   </div>
@@ -62,165 +196,908 @@
 
 <div id="modal-container"></div>
 
-<script>
-  let DB = { projects: [] };
+<!-- ── Supabase ── -->
+<script type="module">
+import { createClient } from 'https://jspm.dev/@supabase/supabase-js';
 
-  function showPage(p) {
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    document.getElementById('page-title').textContent = (p === 'dashboard' ? '대시보드' : '사업 목록 관리');
-    if (p === 'dashboard') renderDashboard();
-    else renderProjects();
-  }
+const SUPABASE_URL = 'https://isgzupwfjmafaiujbkkz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZ3p1cHdmam1hZmFpdWpia2t6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4OTA4NjksImV4cCI6MjA5MjQ2Njg2OX0.l7BmUVw24HC322fbFX4av_4pU0Zd4j92nm_xfGtmpS4';
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+window._sb = sb;
 
-  function renderDashboard() {
-    const total = DB.projects.length;
-    document.getElementById('content').innerHTML = `
-      <div class="section">
-        <h3 style="color:#666; font-size:14px;">관리 중인 총 사업</h3>
-        <h1 style="font-size:32px; margin-top:10px;">${total} <span style="font-size:16px; color:#999;">건</span></h1>
-      </div>`;
-  }
+const statusEl = document.getElementById('db-status');
 
-  function renderProjects() {
-    document.getElementById('content').innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
-        <h3 style="font-weight:600;">사업 리스트</h3>
-        <button class="btn btn-primary" onclick="openFullModal()">+ 신규 사업 등록</button>
-      </div>
-      <table>
-        <thead>
-          <tr><th>발주기관</th><th>사업명</th><th>시작일</th><th>상태</th><th>관리</th></tr>
-        </thead>
-        <tbody>
-          ${DB.projects.map(p => `
-            <tr>
-              <td style="color:#666;">${p.org_name || '-'}</td>
-              <td><strong>${p.name}</strong></td>
-              <td style="color:#888;">${p.start_date || '-'}</td>
-              <td><span style="background:#f0effe; color:#7F77DD; padding:4px 8px; border-radius:4px; font-size:12px;">${p.status}</span></td>
-              <td><button class="btn" style="padding:4px 10px; font-size:12px;" onclick="openFullModal(${p.id})">수정</button></td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>`;
-  }
+// 초기 로드
+async function initLoad() {
+  const [projRes, evtRes, memoRes] = await Promise.all([
+    sb.from('projects').select('*').order('id', { ascending: false }),
+    sb.from('events').select('*').order('date', { ascending: true }),
+    sb.from('memos').select('*').order('updated_at', { ascending: false })
+  ]);
 
-  // --- form-preview.html의 디자인을 완벽히 가져온 모달 ---
-  function openFullModal(id = null) {
-    const p = id ? DB.projects.find(x => x.id === id) : null;
-    document.getElementById('modal-container').innerHTML = `
-      <div class="modal-overlay" onclick="if(event.target===this) this.remove()">
-        <div class="modal">
-          <h2 style="margin-bottom:1.5rem;">${p ? '사업 정보 수정' : '신규 사업 등록'}</h2>
-          
-          <div class="section">
-            <div class="section-title">기본 정보</div>
-            <div class="form-row">
-              <div class="form-group">
-                <label>사업구분</label>
-                <select id="f-biz-type">
-                  <option ${p?.biz_type==='프로젝트'?'selected':''}>프로젝트</option>
-                  <option ${p?.biz_type==='유지보수'?'selected':''}>유지보수</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>발주기관</label>
-                <input id="f-org" placeholder="기관명 입력" value="${p?.org_name||''}">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>사업명</label>
-              <input id="f-name" placeholder="전체 사업명 입력" value="${p?.name||''}">
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label>시스템구분</label><input id="f-sys" placeholder="예: PCMS" value="${p?.sys_type||''}"></div>
-              <div class="form-group"><label>사업유형</label><input id="f-type" placeholder="예: 고도화" value="${p?.project_type||''}"></div>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">일정 및 예산</div>
-            <div class="form-row">
-              <div class="form-group"><label>시작일</label><input type="date" id="f-start" value="${p?.start_date||''}"></div>
-              <div class="form-group"><label>종료일</label><input type="date" id="f-due" value="${p?.due_date||''}"></div>
-            </div>
-            <div class="form-row">
-              <div class="form-group"><label>총사업비(VAT포함)</label><input type="number" id="f-budget" placeholder="숫자만 입력" value="${p?.budget_vat||''}"></div>
-              <div class="form-group"><label>진행현황</label><select id="f-status"><option ${p?.status==='진행중'?'selected':''}>진행중</option><option ${p?.status==='완료'?'selected':''}>완료</option></select></div>
-            </div>
-          </div>
-
-          <div class="section">
-            <div class="section-title">담당자 및 비고</div>
-            <div class="form-group"><label>담당 PM</label><input id="f-pm" placeholder="수행사 PM 이름" value="${p?.pm_name||''}"></div>
-            <div class="form-group"><label>비고(메모)</label><textarea id="f-memo" rows="3" placeholder="추가 전달사항">${p?.memo||''}</textarea></div>
-          </div>
-
-          <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
-            <button class="btn" onclick="document.getElementById('modal-container').innerHTML=''">취소</button>
-            <button class="btn btn-primary" onclick="saveData(${id})">데이터베이스에 저장</button>
-          </div>
-        </div>
-      </div>`;
-  }
-
-  async function saveData(id) {
-    const projectData = {
-      biz_type: document.getElementById('f-biz-type').value,
-      org_name: document.getElementById('f-org').value,
-      name: document.getElementById('f-name').value,
-      sys_type: document.getElementById('f-sys').value,
-      project_type: document.getElementById('f-type').value,
-      status: document.getElementById('f-status').value,
-      start_date: document.getElementById('f-start').value,
-      due_date: document.getElementById('f-due').value,
-      budget_vat: parseInt(document.getElementById('f-budget').value) || 0,
-      pm_name: document.getElementById('f-pm').value,
-      memo: document.getElementById('f-memo').value
-    };
-
-    if (id) projectData.id = id;
-
-    if (window.saveToSupabase) {
-      await window.saveToSupabase(projectData);
-      document.getElementById('modal-container').innerHTML = '';
+  if (projRes.error || evtRes.error || memoRes.error) {
+    // events/memos 테이블이 없을 수도 있으니 projects만 필수 체크
+    if (projRes.error) {
+      statusEl.textContent = '❌ DB 연결 실패';
+      statusEl.style.color = '#a32d2d';
+      // 로컬 폴백
+      window._DB = { projects: [], events: [], memos: [], nextId: 1 };
+      showPage('dashboard');
+      return;
     }
   }
+
+  window._DB = {
+    projects: projRes.data || [],
+    events:   evtRes.data  || [],
+    memos:    memoRes.data || [],
+    nextId: 1
+  };
+
+  statusEl.textContent = '☁️ DB 연결됨';
+  statusEl.style.color = '#0f6e56';
+  showPage('dashboard');
+}
+
+// ── Supabase CRUD ──
+window._sbSaveProject = async function(data) {
+  const { id, ...rest } = data;
+  if (id) {
+    const { error } = await sb.from('projects').update(rest).eq('id', id);
+    return error;
+  } else {
+    const { data: inserted, error } = await sb.from('projects').insert([rest]).select().single();
+    if (!error && inserted) data.id = inserted.id;
+    return error;
+  }
+};
+
+window._sbDeleteProject = async function(id) {
+  // 관련 이벤트도 삭제
+  await sb.from('events').delete().eq('project_id', id);
+  const { error } = await sb.from('projects').delete().eq('id', id);
+  return error;
+};
+
+window._sbSaveEvent = async function(data) {
+  const { id, ...rest } = data;
+  if (id) {
+    const { error } = await sb.from('events').update(rest).eq('id', id);
+    return error;
+  } else {
+    const { data: inserted, error } = await sb.from('events').insert([rest]).select().single();
+    if (!error && inserted) data.id = inserted.id;
+    return error;
+  }
+};
+
+window._sbDeleteEvent = async function(id) {
+  const { error } = await sb.from('events').delete().eq('id', id);
+  return error;
+};
+
+window._sbSaveMemo = async function(data) {
+  const { id, ...rest } = data;
+  if (id) {
+    const { error } = await sb.from('memos').update(rest).eq('id', id);
+    return error;
+  } else {
+    const { data: inserted, error } = await sb.from('memos').insert([rest]).select().single();
+    if (!error && inserted) data.id = inserted.id;
+    return error;
+  }
+};
+
+window._sbDeleteMemo = async function(id) {
+  const { error } = await sb.from('memos').delete().eq('id', id);
+  return error;
+};
+
+window._sbReload = async function() {
+  const [p, e, m] = await Promise.all([
+    sb.from('projects').select('*').order('id', { ascending: false }),
+    sb.from('events').select('*').order('date', { ascending: true }),
+    sb.from('memos').select('*').order('updated_at', { ascending: false })
+  ]);
+  window._DB.projects = p.data || window._DB.projects;
+  window._DB.events   = e.data || window._DB.events;
+  window._DB.memos    = m.data || window._DB.memos;
+};
+
+initLoad();
 </script>
 
-<script type="module">
-  import { createClient } from 'https://jspm.dev/@supabase/supabase-js'
+<!-- ── 앱 메인 로직 ── -->
+<script>
+// DB는 _sb 모듈이 window._DB에 주입. 모듈 로딩 전 폴백
+window._DB = window._DB || { projects: [], events: [], memos: [] };
 
-  const supabaseUrl = 'https://isgzupwfjmafaiujbkkz.supabase.co'; 
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZ3p1cHdmam1hZmFpdWpia2t6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4OTA4NjksImV4cCI6MjA5MjQ2Njg2OX0.l7BmUVw24HC322fbFX4av_4pU0Zd4j92nm_xfGtmpS4';
-  const supabase = createClient(supabaseUrl, supabaseKey);
+// ── 유틸 ──
+function today() { return new Date().toISOString().split('T')[0]; }
+function dday(d)  { return Math.ceil((new Date(d) - new Date(today())) / 864e5); }
+function fmtDate(d) { if (!d) return ''; const p = d.split('-'); return `${p[0]}. ${p[1]}. ${p[2]}`; }
 
-  window.supabase = supabase;
-  const statusEl = document.getElementById('sync-status');
+function ddayBadge(ds) {
+  const d = dday(ds);
+  if (d < 0)   return `<span class="dday dday-past">지남</span>`;
+  if (d === 0) return `<span class="dday dday-danger">D-day</span>`;
+  if (d <= 14) return `<span class="dday dday-danger">D-${d}</span>`;
+  if (d <= 30) return `<span class="dday dday-warn">D-${d}</span>`;
+  return `<span class="dday dday-ok">D-${d}</span>`;
+}
 
-  async function loadDB() {
-    const { data, error } = await supabase.from('projects').select('*').order('id', { ascending: false });
-    if (data) {
-      DB.projects = data;
-      statusEl.textContent = '☁️ DB 연결됨';
-      showPage('dashboard');
-    } else {
-      statusEl.textContent = '❌ 연결 실패';
-    }
+function statusBadge(s) {
+  const m = { '진행중':'badge-active','완료':'badge-done','계획':'badge-plan','보류':'badge-hold','하자보수':'badge-haza','계약대기':'badge-plan' };
+  return `<span class="badge ${m[s]||'badge-plan'}">${s}</span>`;
+}
+
+function bizBadge(t) {
+  return t === 'project'
+    ? `<span class="biz-proj">프로젝트</span>`
+    : `<span class="biz-maint">유지보수</span>`;
+}
+
+function dotClass(ds, status) {
+  if (status === '완료') return 'dot-gray';
+  const d = dday(ds);
+  if (d < 0)   return 'dot-gray';
+  if (d <= 14) return 'dot-red';
+  if (d <= 30) return 'dot-amber';
+  return 'dot-green';
+}
+
+function evColorClass(ds, status) {
+  if (status === '완료' || dday(ds) < 0) return 'cal-event-gray';
+  const d = dday(ds);
+  if (d <= 14) return 'cal-event-red';
+  if (d <= 30) return 'cal-event-amber';
+  return 'cal-event-green';
+}
+
+function closeModal(e) { if (e.target === e.currentTarget) document.getElementById('modal-container').innerHTML = ''; }
+function closeModalForce() { document.getElementById('modal-container').innerHTML = ''; }
+
+// ── 네비게이션 ──
+const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장' };
+
+function setNav(p) {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    el.classList.toggle('active', el.textContent.trim() === PAGE_TITLES[p]);
+  });
+}
+
+function showPage(p) {
+  document.getElementById('page-title').textContent = PAGE_TITLES[p];
+  setNav(p);
+  const a = document.getElementById('topbar-actions');
+  if (p === 'projects') a.innerHTML = `<button class="btn btn-primary" onclick="openAddProject()">+ 사업 추가</button>`;
+  else if (p === 'schedule') a.innerHTML = `<button class="btn btn-primary" onclick="openAddEvent()">+ 일정 추가</button>`;
+  else if (p === 'memos') a.innerHTML = `<button class="btn btn-primary" onclick="openEditMemo(null)">+ 메모 추가</button>`;
+  else a.innerHTML = '';
+  pages[p]();
+}
+
+// ── 페이지 렌더 ──
+const pages = {
+
+  dashboard() {
+    const DB = window._DB;
+    const active   = DB.projects.filter(p => p.status === '진행중').length;
+    const upcoming = DB.events.filter(e => e.status === '예정' && dday(e.date) >= 0 && dday(e.date) <= 30).length;
+    const overdue  = DB.events.filter(e => e.status === '예정' && dday(e.date) < 0).length;
+    const sorted   = [...DB.events].filter(e => e.status === '예정' && dday(e.date) >= 0)
+      .sort((a,b) => new Date(a.date)-new Date(b.date)).slice(0,6);
+
+    document.getElementById('content').innerHTML = `
+      <div class="grid3">
+        <div class="metric"><div class="metric-label">진행중 사업</div><div class="metric-value">${active}건</div></div>
+        <div class="metric"><div class="metric-label">30일 내 일정</div><div class="metric-value">${upcoming}건</div></div>
+        <div class="metric"><div class="metric-label">기한 초과</div><div class="metric-value" style="color:#a32d2d">${overdue}건</div></div>
+      </div>
+      <div class="card">
+        <h3>다가오는 일정</h3>
+        ${sorted.length ? sorted.map(e => {
+          const proj = DB.projects.find(p => p.id === e.project_id);
+          return `<div class="event-row">
+            <div class="event-dot ${dotClass(e.date, e.status)}"></div>
+            <div style="flex:1">
+              <div style="font-weight:500">${e.title}</div>
+              <div style="font-size:11px;color:#888;margin-top:2px">${proj?proj.name:''} · ${e.type||''}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+              <span style="font-size:12px;color:#888">${fmtDate(e.date)}</span>
+              ${ddayBadge(e.date)}
+            </div>
+          </div>`;
+        }).join('') : '<div class="empty">예정된 일정이 없어요</div>'}
+      </div>
+      <div class="card">
+        <h3>진행중 사업</h3>
+        ${DB.projects.filter(p=>p.status==='진행중').map(p=>`
+          <div class="project-row" onclick="openProject(${p.id})">
+            <div style="flex:2;font-weight:500">${p.name}</div>
+            <div style="flex:1;color:#888;font-size:12px">${p.sys_type||''}</div>
+            <div style="flex:1;color:#888;font-size:12px">${fmtDate(p.due_date)} 까지</div>
+            ${statusBadge(p.status)}
+          </div>`).join('')}
+      </div>`;
+  },
+
+  projects() {
+    const DB = window._DB;
+    const f = window._projFilter || 'all';
+    let list = DB.projects;
+    if (f === 'project')     list = list.filter(p => p.biz_type === 'project');
+    if (f === 'maintenance') list = list.filter(p => p.biz_type === 'maintenance');
+
+    document.getElementById('content').innerHTML = `
+      <div class="tab-bar">
+        <button class="tab ${f==='all'?'active':''}"         onclick="window._projFilter='all';pages.projects()">전체</button>
+        <button class="tab ${f==='project'?'active':''}"     onclick="window._projFilter='project';pages.projects()">프로젝트</button>
+        <button class="tab ${f==='maintenance'?'active':''}" onclick="window._projFilter='maintenance';pages.projects()">유지보수</button>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        ${list.length ? list.map(p => `
+          <div class="project-row" style="padding:1rem 1.25rem;margin:0;border-radius:0" onclick="openProject(${p.id})">
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+                ${bizBadge(p.biz_type)}
+                <span style="font-weight:500;font-size:14px">${p.name}</span>
+                ${statusBadge(p.status)}
+                <span style="font-size:11px;color:#aaa">${p.sys_type||''}</span>
+              </div>
+              <div style="display:flex;gap:16px;font-size:12px;color:#888">
+                <span>${fmtDate(p.start_date)} ~ ${fmtDate(p.due_date)}</span>
+                <span>예산 ${(p.budget_no_vat||0).toLocaleString()}원 (VAT제외)</span>
+                <span>PM ${p.pm_name||'-'}</span>
+              </div>
+              ${p.note?`<div style="font-size:12px;color:#888;margin-top:6px;padding:6px 8px;background:#f5f5f3;border-radius:6px">${p.note}</div>`:''}
+            </div>
+          </div>`).join('') : '<div class="empty">등록된 사업이 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>'}
+      </div>`;
+  },
+
+  schedule() {
+    const activeView = window._scheduleView || 'list';
+    const activeTab  = window._scheduleTab  || '전체';
+    document.getElementById('content').innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <div class="tab-bar" style="margin:0">
+          ${['전체','예정','완료'].map(t=>`<button class="tab ${t===activeTab?'active':''}" onclick="window._scheduleTab='${t}';pages.schedule()">${t}</button>`).join('')}
+        </div>
+        <div class="tab-bar" style="margin:0">
+          <button class="tab ${activeView==='list'?'active':''}" onclick="window._scheduleView='list';pages.schedule()">목록</button>
+          <button class="tab ${activeView==='cal'?'active':''}"  onclick="window._scheduleView='cal';pages.schedule()">캘린더</button>
+        </div>
+      </div>
+      <div id="schedule-body"></div>`;
+    activeView === 'cal' ? renderCalendar() : renderScheduleList(activeTab);
+  },
+
+  memos() {
+    const DB = window._DB;
+    const memos = [...DB.memos].sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
+    document.getElementById('content').innerHTML = memos.length
+      ? `<div class="memo-grid">${memos.map(m=>`
+          <div class="memo-card" onclick="openViewMemo(${m.id})">
+            <div class="memo-title">${m.title||'제목 없음'}</div>
+            <div class="memo-preview">${(m.content||'').replace(/\n/g,' ')}</div>
+            <div class="memo-date">${fmtDate((m.updated_at||'').split('T')[0])}</div>
+          </div>`).join('')}</div>`
+      : '<div class="empty" style="margin-top:3rem">메모가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>';
   }
+};
 
-  window.saveToSupabase = async function(obj) {
-    statusEl.textContent = '⏳ 저장 중...';
-    const { error } = await supabase.from('projects').upsert([obj]);
-    if (!error) {
-      statusEl.textContent = '✅ 저장 성공';
-      loadDB();
-    } else {
-      alert("저장 에러: " + error.message);
-    }
+// ── 일정 목록 ──
+function renderScheduleList(tab) {
+  const DB = window._DB;
+  let evts = [...DB.events];
+  if (tab === '예정') evts = evts.filter(e => e.status === '예정');
+  if (tab === '완료') evts = evts.filter(e => e.status === '완료');
+  evts.sort((a,b) => new Date(a.date)-new Date(b.date));
+
+  document.getElementById('schedule-body').innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden">
+      ${evts.length ? evts.map(e => {
+        const proj = DB.projects.find(p => p.id === e.project_id);
+        return `<div style="padding:1rem 1.25rem;border-bottom:1px solid #f0f0ee;display:flex;align-items:flex-start;gap:12px">
+          <div style="min-width:72px;font-size:12px;color:#888;padding-top:3px">${fmtDate(e.date)}</div>
+          <div style="flex:1">
+            <div style="font-weight:500;margin-bottom:3px">${e.title}</div>
+            <div style="font-size:12px;color:#888">${proj?proj.name:''} · <span style="background:#f0f0ee;padding:1px 6px;border-radius:4px">${e.type||''}</span></div>
+            ${e.memo?`<div style="font-size:12px;color:#888;margin-top:4px">${e.memo}</div>`:''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            ${e.status==='예정'?ddayBadge(e.date):statusBadge(e.status)}
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-sm" onclick="openEditEvent(${e.id})">수정</button>
+              ${e.status==='예정'?`<button class="btn btn-sm" onclick="completeEvent(${e.id})">완료</button>`:''}
+            </div>
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty">일정이 없어요</div>'}
+    </div>`;
+}
+
+// ── 캘린더 ──
+let calYear, calMonth;
+function renderCalendar() {
+  const DB = window._DB;
+  const now = new Date();
+  if (calYear  === undefined) calYear  = now.getFullYear();
+  if (calMonth === undefined) calMonth = now.getMonth();
+  const firstDay = new Date(calYear, calMonth, 1);
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const startDow = firstDay.getDay();
+  const todayStr = today();
+  const monthStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  const monthEvents = DB.events.filter(e => e.date && e.date.startsWith(monthStr));
+  let cells = '';
+  const prevLast = new Date(calYear, calMonth, 0).getDate();
+  for (let i = startDow-1; i >= 0; i--)
+    cells += `<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc">${prevLast-i}</span></div>`;
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = ds === todayStr;
+    const de = monthEvents.filter(e => e.date === ds);
+    cells += `<div class="cal-cell${isToday?' today':''}">
+      <span class="cal-day">${d}</span>
+      ${de.map(e=>`<div class="cal-event ${evColorClass(e.date,e.status)}" onclick="quickViewEvent(${e.id})" title="${e.title}">${e.title}</div>`).join('')}
+    </div>`;
   }
+  const rem = (startDow+daysInMonth)%7;
+  for (let i = 1; i <= (rem?7-rem:0); i++)
+    cells += `<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc">${i}</span></div>`;
+  const label = new Date(calYear, calMonth).toLocaleDateString('ko-KR', {year:'numeric',month:'long'});
+  document.getElementById('schedule-body').innerHTML = `
+    <div class="card">
+      <div class="cal-nav">
+        <button onclick="calMove(-1)">◀</button>
+        <h3>${label}</h3>
+        <button onclick="calMove(1)">▶</button>
+      </div>
+      <div class="cal-grid">
+        ${['일','월','화','수','목','금','토'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}
+        ${cells}
+      </div>
+    </div>`;
+}
+function calMove(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth=0; calYear++; }
+  if (calMonth < 0)  { calMonth=11; calYear--; }
+  renderCalendar();
+}
+function quickViewEvent(id) {
+  const e = window._DB.events.find(x => x.id===id);
+  if (!e) return;
+  const proj = window._DB.projects.find(p => p.id===e.project_id);
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" style="width:360px">
+      <h3>${e.title}</h3>
+      <div style="font-size:13px;color:#555;margin-bottom:1rem;line-height:1.8">
+        <div>날짜: ${fmtDate(e.date)} &nbsp; ${e.status==='예정'?ddayBadge(e.date):statusBadge(e.status)}</div>
+        <div>유형: ${e.type||''}</div>
+        ${proj?`<div>사업: ${proj.name}</div>`:''}
+        ${e.memo?`<div style="margin-top:6px;padding:8px;background:#f5f5f3;border-radius:6px">${e.memo}</div>`:''}
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModalForce()">닫기</button>
+        <button class="btn btn-primary" onclick="closeModalForce();openEditEvent(${e.id})">수정</button>
+      </div>
+    </div>
+  </div>`;
+}
 
-  loadDB();
+// ── 사업 상세보기 ──
+function openProject(id) {
+  const p = window._DB.projects.find(x => x.id===id);
+  if (!p) return;
+  const relEvents = window._DB.events.filter(e => e.project_id===id);
+
+  // 기관 담당자 파싱 (저장 형식: "이름|전화|이메일|메모;;...")
+  const contacts = (p.contacts||'').split(';;').filter(Boolean).map(s => {
+    const [nm,ph,em,mo] = s.split('|');
+    return `<div style="background:#f9f9f7;border-radius:8px;padding:.6rem .75rem;margin-bottom:6px;border:1px solid #ebebea;font-size:12px">
+      <div style="font-weight:500">${nm||''}</div>
+      <div style="color:#888">${[ph,em].filter(Boolean).join(' · ')}</div>
+      ${mo?`<div style="color:#aaa;margin-top:2px">${mo}</div>`:''}
+    </div>`;
+  }).join('');
+
+  // 행정 이벤트 파싱 (저장 형식: "라벨|날짜;;...")
+  const adminEvts = (p.admin_events||'').split(';;').filter(Boolean).map(s => {
+    const [label,date] = s.split('|');
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f0f0ee;font-size:12px">
+      <span style="color:#555">${label||''}</span>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="color:#888">${fmtDate(date)}</span>
+        ${date?ddayBadge(date):''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // 직접비 파싱
+  const directs = (p.directs||'').split(';;').filter(Boolean).map(s => {
+    const [nm,amt,note] = s.split('|');
+    return `<div style="font-size:12px;display:flex;gap:8px;padding:4px 0;border-bottom:1px solid #f0f0ee">
+      <span style="flex:1;color:#555">${nm||''}</span>
+      <span style="color:#888">${amt?parseInt(amt).toLocaleString()+'원':''}</span>
+      <span style="color:#aaa">${note||''}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" style="width:600px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+        ${bizBadge(p.biz_type)}
+        <h3 style="flex:1;margin:0">${p.name}</h3>
+        ${statusBadge(p.status)}
+      </div>
+      <div class="grid2" style="margin-bottom:1rem">
+        <div class="metric"><div class="metric-label">담당 PM</div><div style="font-size:14px;font-weight:600">${p.pm_name||'-'}</div></div>
+        <div class="metric"><div class="metric-label">시스템</div><div style="font-size:14px;font-weight:600">${p.sys_type||'-'}</div></div>
+        <div class="metric"><div class="metric-label">기간</div><div style="font-size:12px;font-weight:500;padding-top:2px">${fmtDate(p.start_date)} ~ ${fmtDate(p.due_date)}</div></div>
+        <div class="metric"><div class="metric-label">사업비 (VAT제외)</div><div style="font-size:13px;font-weight:600;padding-top:2px">${(p.budget_no_vat||0).toLocaleString()}원</div></div>
+      </div>
+      ${p.billing?`<div style="font-size:12px;color:#888;margin-bottom:.75rem">청구방식: <strong>${p.billing}</strong></div>`:''}
+      ${contacts?`<div style="font-size:12px;font-weight:500;color:#888;margin-bottom:6px">기관 담당자</div>${contacts}`:''}
+      ${adminEvts?`<div style="font-size:12px;font-weight:500;color:#888;margin:.75rem 0 4px">행정 이벤트</div>${adminEvts}`:''}
+      ${directs?`<div style="font-size:12px;font-weight:500;color:#888;margin:.75rem 0 4px">직접비</div>${directs}`:''}
+      ${p.note?`<div style="background:#f5f5f3;border-radius:8px;padding:.75rem;font-size:13px;margin-top:.75rem;white-space:pre-wrap;line-height:1.7">${p.note}</div>`:''}
+      ${relEvents.length?`
+        <div style="font-size:12px;font-weight:500;color:#888;margin:.75rem 0 4px">관련 일정</div>
+        ${relEvents.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0ee;font-size:13px">
+          <span>${e.title}</span>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span style="color:#888;font-size:12px">${fmtDate(e.date)}</span>
+            ${e.status==='예정'?ddayBadge(e.date):statusBadge(e.status)}
+          </div>
+        </div>`).join('')}`:''}
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="deleteProject(${id})">삭제</button>
+        <button class="btn" onclick="closeModalForce()">닫기</button>
+        <button class="btn btn-primary" onclick="openEditProject(${id})">수정</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── 사업 등록/수정 폼 ──
+function openAddProject() { _projectForm(null); }
+function openEditProject(id) { closeModalForce(); _projectForm(id); }
+
+function _projectForm(id) {
+  const p = id ? window._DB.projects.find(x => x.id===id) : null;
+
+  // 기존 데이터 파싱
+  const existContacts = (p&&p.contacts||'').split(';;').filter(Boolean).map(s => {
+    const [nm,ph,em,mo] = s.split('|'); return {nm,ph,em,mo};
+  });
+  const existAdminEvts = (p&&p.admin_events||'').split(';;').filter(Boolean).map(s => {
+    const [label,date] = s.split('|'); return {label,date};
+  });
+  const existDirects = (p&&p.directs||'').split(';;').filter(Boolean).map(s => {
+    const [nm,amt,note] = s.split('|'); return {nm,amt,note};
+  });
+
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal">
+      <h3>${p?'사업 수정':'새 사업 등록'}</h3>
+
+      <!-- 기본 정보 -->
+      <div class="f-section">
+        <div class="f-section-title">기본 정보</div>
+        <div class="form-group">
+          <label>사업 구분 <span class="req">*</span></label>
+          <div class="type-row">
+            <div class="type-tag tp-proj ${(!p||p.biz_type==='project')?'on':''}"  id="fp-tag-proj"  onclick="fpSelectType('project')">프로젝트</div>
+            <div class="type-tag tp-maint ${(p&&p.biz_type==='maintenance')?'on':''}" id="fp-tag-maint" onclick="fpSelectType('maintenance')">유지보수</div>
+          </div>
+          <input type="hidden" id="fp-biztype" value="${p?p.biz_type:'project'}"/>
+        </div>
+        <div class="form-group"><label>사업명 <span class="req">*</span></label><input id="fp-name" value="${p?p.name:''}"/></div>
+        <div class="form-row">
+          <div class="form-group"><label>발주 기관</label><input id="fp-org" value="${p?p.org_name:''}"/></div>
+          <div class="form-group"><label>시스템 구분</label>
+            <select id="fp-sys">${['','PCMS','ECMS','i-portal','외부','기타'].map(v=>`<option value="${v}" ${p&&p.sys_type===v?'selected':''}>${v||'선택'}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>사업 유형</label>
+            <select id="fp-type">${['','홈페이지 구축','유지보수','고도화','시스템 개발','용역','기타'].map(v=>`<option value="${v}" ${p&&p.project_type===v?'selected':''}>${v||'선택'}</option>`).join('')}</select>
+          </div>
+          <div class="form-group"><label>진행 상태</label>
+            <select id="fp-status">${['진행중','계약대기','계획','하자보수','완료','보류'].map(v=>`<option ${p&&p.status===v?'selected':''}>${v}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>사업 시작일</label><input type="date" id="fp-start" value="${p?p.start_date:''}"/></div>
+          <div class="form-group"><label>사업 종료일</label><input type="date" id="fp-due" value="${p?p.due_date:''}"/></div>
+        </div>
+      </div>
+
+      <!-- 예산 / 비용 -->
+      <div class="f-section">
+        <div class="f-section-title">예산 / 비용</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>총 사업비 (원, VAT 포함)</label>
+            <input type="number" id="fp-budgetvat" value="${p?p.budget_vat:''}" placeholder="0" oninput="fpCalcVat()"/>
+          </div>
+          <div class="form-group">
+            <label>사업비 (VAT 제외)</label>
+            <input type="number" id="fp-budget" value="${p?p.budget_no_vat:''}" placeholder="자동 계산" readonly/>
+            <div class="hint">총 사업비 입력 시 자동 계산 (÷ 1.1)</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>대금 청구 방식</label>
+          <div class="ftag-row" id="fp-billing-tags">
+            ${['월별','분기별','일괄 선입금','일괄 후불','미정'].map(t=>`<span class="ftag ${p&&(p.billing||'').includes(t)?'on':''}" onclick="this.classList.toggle('on')">${t}</span>`).join('')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>직접비 항목</label>
+          <div id="fp-direct-list"></div>
+          <button class="add-link" onclick="fpAddDirect()">+ 직접비 항목 추가</button>
+        </div>
+      </div>
+
+      <!-- 담당자 -->
+      <div class="f-section">
+        <div class="f-section-title">담당자</div>
+        <div class="form-group"><label>담당 PM</label><input id="fp-pm" value="${p?p.pm_name:''}" placeholder="이름"/></div>
+        <div class="form-row3">
+          <div class="form-group"><label>디자인</label><input id="fp-design" value="${p?p.design_name:''}" placeholder="담당자명"/></div>
+          <div class="form-group"><label>퍼블리싱</label><input id="fp-pub" value="${p?p.pub_name:''}" placeholder="담당자명"/></div>
+          <div class="form-group"><label>개발</label><input id="fp-dev" value="${p?p.dev_name:''}" placeholder="담당자명"/></div>
+        </div>
+        <div class="form-group">
+          <label>기관 담당자</label>
+          <div id="fp-contact-list"></div>
+          <button class="add-link" onclick="fpAddContact()">+ 기관 담당자 추가</button>
+        </div>
+      </div>
+
+      <!-- 행정 이벤트 -->
+      <div class="f-section">
+        <div class="f-section-title">행정 이벤트 / 갱신 일정</div>
+        <p class="hint" style="margin-bottom:12px">만료일 또는 예정일을 등록하면 일정 탭에서 D-day로 표시돼요.</p>
+        <div id="fp-event-list"></div>
+        <button class="add-link" onclick="fpAddEvent()">+ 일정 항목 추가</button>
+      </div>
+
+      <!-- 메모 -->
+      <div class="f-section">
+        <div class="f-section-title">메모 / 비고</div>
+        <div class="form-group"><label>비고</label><textarea id="fp-note" placeholder="특이사항, 주의사항, 인수인계 내용 등">${p?p.note:''}</textarea></div>
+        <div class="form-group"><label>진행현황</label><textarea id="fp-progress" placeholder="현재까지의 진행 내용 요약">${p?p.progress_memo:''}</textarea></div>
+      </div>
+
+      <div class="modal-footer">
+        ${p?`<button class="btn btn-danger" onclick="deleteProject(${id})">삭제</button>`:''}
+        <span class="save-stat" id="fp-stat"></span>
+        <button class="btn" onclick="closeModalForce()">취소</button>
+        <button class="btn btn-primary" id="fp-save-btn" onclick="fpSave(${id||'null'})">${p?'저장':'등록'}</button>
+      </div>
+    </div>
+  </div>`;
+
+  // 직접비 초기화
+  window._fpContactCount = 0;
+  existDirects.length ? existDirects.forEach(d => fpAddDirect(d)) : fpAddDirect();
+  // 기관 담당자 초기화
+  existContacts.length ? existContacts.forEach(c => fpAddContact(c)) : fpAddContact();
+  // 행정 이벤트 초기화
+  if (existAdminEvts.length) {
+    existAdminEvts.forEach(e => fpAddEvent(e));
+  } else {
+    ['웹 접근성 인증 만료일','SSL 인증서 만료일','호스팅 만료일'].forEach(label => fpAddEvent({label,date:''}));
+  }
+}
+
+// ── 폼 헬퍼 ──
+function fpSelectType(type) {
+  document.getElementById('fp-biztype').value = type;
+  document.getElementById('fp-tag-proj').classList.toggle('on', type==='project');
+  document.getElementById('fp-tag-maint').classList.toggle('on', type==='maintenance');
+}
+
+function fpCalcVat() {
+  const v = parseInt(document.getElementById('fp-budgetvat').value)||0;
+  document.getElementById('fp-budget').value = v ? Math.floor(v/1.1) : '';
+}
+
+const FP_D_OPTS = ['웹 접근성 인증심사비','SSL 보안인증서','웹 호스팅 (카페24)','웹 호스팅 (플랜아이)','개발 외주비','기타'];
+function fpAddDirect(data) {
+  const div = document.createElement('div');
+  div.className = 'direct-item';
+  const nm = data&&data.nm||'';
+  const selVal = FP_D_OPTS.slice(0,-1).includes(nm) ? nm : (nm?'기타':'');
+  div.innerHTML =
+    `<select class="di-select" onchange="fpOnDirectChange(this)">
+      <option value="">항목 선택</option>
+      ${FP_D_OPTS.map(o=>`<option ${selVal===o?'selected':''}>${o}</option>`).join('')}
+    </select>
+    <input class="di-custom" placeholder="항목명 직접 입력" value="${selVal==='기타'?nm:''}" style="display:${selVal==='기타'?'block':'none'}"/>
+    <input class="di-amount" type="number" placeholder="금액 (원)" value="${data?data.amt:''}"/>
+    <input class="di-note" placeholder="비고" value="${data?data.note:''}"/>
+    <button class="del-x" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('fp-direct-list').appendChild(div);
+}
+function fpOnDirectChange(sel) {
+  const c = sel.parentElement.querySelector('.di-custom');
+  c.style.display = sel.value==='기타'?'block':'none';
+  if (sel.value==='기타') c.focus(); else c.value='';
+}
+
+function fpAddContact(data) {
+  window._fpContactCount = (window._fpContactCount||0)+1;
+  const n = window._fpContactCount;
+  const div = document.createElement('div');
+  div.className = 'contact-block';
+  div.innerHTML =
+    `<div class="contact-lbl"><span>담당자 ${n}</span>
+      <button class="del-txt" onclick="this.closest('.contact-block').remove()">삭제</button></div>
+    <div class="form-row" style="margin-bottom:8px">
+      <input class="fc-name"  placeholder="이름 / 직책" value="${data?data.nm:''}"/>
+      <input class="fc-phone" placeholder="전화번호"    value="${data?data.ph:''}"/>
+    </div>
+    <input class="fc-email" placeholder="이메일" value="${data?data.em:''}" style="margin-bottom:8px"/>
+    <textarea class="fc-memo" placeholder="메모 (예: 계약 담당, 세금계산서 요청 시 연락)" style="min-height:56px">${data?data.mo:''}</textarea>`;
+  document.getElementById('fp-contact-list').appendChild(div);
+}
+
+const FP_E_OPTS = ['웹 접근성 인증 만료일','SSL 인증서 만료일','호스팅 만료일','계약일','착수보고일','중간보고일','완료보고일','세금계산서 발행일','직접 입력'];
+function fpAddEvent(data) {
+  const div = document.createElement('div');
+  div.className = 'event-item';
+  const label = data&&data.label||'';
+  const isCustom = label && !FP_E_OPTS.slice(0,-1).includes(label);
+  const selVal = isCustom ? '직접 입력' : label;
+  div.innerHTML =
+    `<select class="ev-select" onchange="fpOnEventChange(this)" style="${isCustom?'width:130px;flex:none':''}">
+      <option value="">항목 선택</option>
+      ${FP_E_OPTS.map(o=>`<option ${selVal===o?'selected':''}>${o}</option>`).join('')}
+    </select>
+    <input class="ev-custom" placeholder="항목명 직접 입력" value="${isCustom?label:''}" style="display:${isCustom?'block':'none'}"/>
+    <input class="ev-date" type="date" value="${data?data.date:''}"/>
+    <button class="del-x" onclick="this.parentElement.remove()">×</button>`;
+  document.getElementById('fp-event-list').appendChild(div);
+}
+function fpOnEventChange(sel) {
+  const c = sel.parentElement.querySelector('.ev-custom');
+  if (sel.value==='직접 입력') {
+    sel.style.cssText='width:130px;flex:none'; c.style.display='block'; c.focus();
+  } else {
+    sel.style.cssText=''; c.style.display='none'; c.value='';
+  }
+}
+
+// ── 사업 저장 ──
+async function fpSave(id) {
+  const name = document.getElementById('fp-name').value.trim();
+  if (!name) return alert('사업명을 입력해주세요');
+
+  const directs = [...document.querySelectorAll('#fp-direct-list .direct-item')].map(el => {
+    const sel = el.querySelector('.di-select').value;
+    const nm = sel==='기타' ? el.querySelector('.di-custom').value.trim() : sel;
+    const amt = el.querySelector('.di-amount').value;
+    const note = el.querySelector('.di-note').value.trim();
+    return nm ? `${nm}|${amt}|${note}` : null;
+  }).filter(Boolean).join(';;');
+
+  const contacts = [...document.querySelectorAll('#fp-contact-list .contact-block')].map(el => {
+    const nm = el.querySelector('.fc-name').value.trim();
+    const ph = el.querySelector('.fc-phone').value.trim();
+    const em = el.querySelector('.fc-email').value.trim();
+    const mo = el.querySelector('.fc-memo').value.trim();
+    return nm||em ? `${nm}|${ph}|${em}|${mo}` : null;
+  }).filter(Boolean).join(';;');
+
+  const adminEvents = [...document.querySelectorAll('#fp-event-list .event-item')].map(el => {
+    const sel = el.querySelector('.ev-select').value;
+    const label = sel==='직접 입력' ? el.querySelector('.ev-custom').value.trim() : sel;
+    const date = el.querySelector('.ev-date').value;
+    return label&&date ? `${label}|${date}` : null;
+  }).filter(Boolean).join(';;');
+
+  const billing = [...document.querySelectorAll('#fp-billing-tags .ftag.on')].map(t=>t.textContent).join(', ');
+
+  const data = {
+    id:            id || undefined,
+    biz_type:      document.getElementById('fp-biztype').value,
+    name,
+    org_name:      document.getElementById('fp-org').value.trim(),
+    sys_type:      document.getElementById('fp-sys').value,
+    project_type:  document.getElementById('fp-type').value,
+    status:        document.getElementById('fp-status').value,
+    start_date:    document.getElementById('fp-start').value || null,
+    due_date:      document.getElementById('fp-due').value || null,
+    budget_vat:    parseInt(document.getElementById('fp-budgetvat').value)||0,
+    budget_no_vat: parseInt(document.getElementById('fp-budget').value)||0,
+    billing,
+    directs,
+    pm_name:       document.getElementById('fp-pm').value.trim(),
+    design_name:   document.getElementById('fp-design').value.trim(),
+    pub_name:      document.getElementById('fp-pub').value.trim(),
+    dev_name:      document.getElementById('fp-dev').value.trim(),
+    contacts,
+    admin_events:  adminEvents,
+    note:          document.getElementById('fp-note').value.trim(),
+    progress_memo: document.getElementById('fp-progress').value.trim(),
+  };
+
+  const btn = document.getElementById('fp-save-btn');
+  const stat = document.getElementById('fp-stat');
+  btn.disabled = true;
+  stat.className = 'save-stat loading'; stat.textContent = '저장 중...';
+
+  try {
+    if (window._sbSaveProject) {
+      const err = await window._sbSaveProject(data);
+      if (err) throw new Error(err.message);
+    }
+    // 행정 이벤트 → 일정 탭 자동 등록 (신규 등록 시)
+    if (!id && data.id && window._sbSaveEvent) {
+      const evtList = adminEvents.split(';;').filter(Boolean);
+      for (const s of evtList) {
+        const [label, date] = s.split('|');
+        if (label && date) {
+          await window._sbSaveEvent({ project_id: data.id, title: `[${name}] ${label}`, type: '갱신', date, status: '예정', memo: '' });
+        }
+      }
+    }
+    stat.className = 'save-stat ok'; stat.textContent = '저장됐어요!';
+    if (window._sbReload) await window._sbReload();
+    setTimeout(() => { closeModalForce(); showPage('projects'); }, 800);
+  } catch(e) {
+    stat.className = 'save-stat err'; stat.textContent = '저장 실패: ' + e.message;
+    btn.disabled = false;
+  }
+}
+
+// ── 사업 삭제 ──
+async function deleteProject(id) {
+  if (!confirm('사업을 삭제하면 관련 일정도 삭제됩니다. 계속할까요?')) return;
+  if (window._sbDeleteProject) await window._sbDeleteProject(id);
+  if (window._sbReload) await window._sbReload();
+  closeModalForce(); showPage('projects');
+}
+
+// ── 일정 CRUD ──
+function openAddEvent() { _eventForm(null); }
+function openEditEvent(id) { _eventForm(id); }
+
+function _eventForm(id) {
+  const DB = window._DB;
+  const e = id ? DB.events.find(x => x.id===id) : null;
+  const types = ['심사','갱신','보고','정산','신청','회의','기타'];
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" style="width:480px">
+      <h3>${e?'일정 수정':'일정 추가'}</h3>
+      <div class="form-group"><label>일정명</label><input id="e-title" value="${e?e.title:''}"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>관련 사업</label>
+          <select id="e-proj">
+            <option value="">없음</option>
+            ${DB.projects.map(p=>`<option value="${p.id}" ${e&&p.id===e.project_id?'selected':''}>${p.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>유형</label>
+          <select id="e-type">${types.map(t=>`<option ${e&&t===e.type?'selected':''}>${t}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="form-group"><label>날짜</label><input id="e-date" type="date" value="${e?e.date:''}"/></div>
+      <div class="form-group"><label>메모</label><textarea id="e-memo">${e?e.memo:''}</textarea></div>
+      <div class="modal-footer">
+        ${e?`<button class="btn btn-danger" onclick="deleteEvent(${id})">삭제</button>`:''}
+        <button class="btn" onclick="closeModalForce()">취소</button>
+        <button class="btn btn-primary" onclick="saveEvent(${id||'null'})">${e?'저장':'추가'}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function saveEvent(id) {
+  const title = document.getElementById('e-title').value.trim();
+  if (!title) return alert('일정명을 입력해주세요');
+  const DB = window._DB;
+  const existing = id ? DB.events.find(e => e.id===id) : null;
+  const data = {
+    id: id || undefined,
+    title,
+    project_id: parseInt(document.getElementById('e-proj').value)||null,
+    type:   document.getElementById('e-type').value,
+    date:   document.getElementById('e-date').value,
+    memo:   document.getElementById('e-memo').value,
+    status: existing ? existing.status : '예정'
+  };
+  if (window._sbSaveEvent) await window._sbSaveEvent(data);
+  if (window._sbReload) await window._sbReload();
+  closeModalForce(); showPage('schedule');
+}
+
+async function completeEvent(id) {
+  const e = window._DB.events.find(x => x.id===id);
+  if (!e) return;
+  e.status = '완료';
+  if (window._sbSaveEvent) await window._sbSaveEvent(e);
+  if (window._sbReload) await window._sbReload();
+  showPage('schedule');
+}
+
+async function deleteEvent(id) {
+  if (!confirm('일정을 삭제할까요?')) return;
+  if (window._sbDeleteEvent) await window._sbDeleteEvent(id);
+  if (window._sbReload) await window._sbReload();
+  closeModalForce(); showPage('schedule');
+}
+
+// ── 메모 CRUD ──
+function openViewMemo(id) {
+  const m = window._DB.memos.find(x => x.id===id);
+  if (!m) return;
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" style="width:480px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+        <h3 style="margin:0">${m.title||'제목 없음'}</h3>
+        <span style="font-size:11px;color:#bbb">${fmtDate((m.updated_at||'').split('T')[0])}</span>
+      </div>
+      <div style="font-size:13px;line-height:1.8;white-space:pre-wrap;background:#f5f5f3;padding:1rem;border-radius:8px;min-height:100px">${m.content||''}</div>
+      <div class="modal-footer">
+        <button class="btn btn-danger" onclick="deleteMemo(${id})">삭제</button>
+        <button class="btn" onclick="closeModalForce()">닫기</button>
+        <button class="btn btn-primary" onclick="closeModalForce();openEditMemo(${id})">수정</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function openEditMemo(id) {
+  const m = id ? window._DB.memos.find(x => x.id===id) : null;
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" style="width:480px">
+      <h3>${m?'메모 수정':'새 메모'}</h3>
+      <div class="form-group"><label>제목</label><input id="m-title" value="${m?m.title:''}"/></div>
+      <div class="form-group"><label>내용</label><textarea id="m-content" style="min-height:160px">${m?m.content:''}</textarea></div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModalForce()">취소</button>
+        <button class="btn btn-primary" onclick="saveMemo(${id||'null'})">${m?'저장':'추가'}</button>
+      </div>
+    </div>
+  </div>`;
+  setTimeout(() => document.getElementById('m-content').focus(), 50);
+}
+
+async function saveMemo(id) {
+  const content = document.getElementById('m-content').value.trim();
+  if (!content) return alert('내용을 입력해주세요');
+  const now = new Date().toISOString();
+  const data = {
+    id: id || undefined,
+    title:      document.getElementById('m-title').value.trim(),
+    content,
+    updated_at: now,
+    created_at: id ? undefined : now
+  };
+  if (!id) delete data.created_at; // insert 시 DB 기본값 사용
+  if (window._sbSaveMemo) await window._sbSaveMemo(data);
+  if (window._sbReload) await window._sbReload();
+  closeModalForce(); showPage('memos');
+}
+
+async function deleteMemo(id) {
+  if (!confirm('메모를 삭제할까요?')) return;
+  if (window._sbDeleteMemo) await window._sbDeleteMemo(id);
+  if (window._sbReload) await window._sbReload();
+  closeModalForce(); showPage('memos');
+}
+
+// ── 초기화 ──
+document.getElementById('today-date').textContent =
+  new Date().toLocaleDateString('ko-KR', { year:'numeric', month:'long', day:'numeric' });
 </script>
 </body>
 </html>
