@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>사업 관리 (DB 연동형)</title>
+<title>사업 관리 시스템 v2 (DB 연동)</title>
 <style>
-  /* (기존 CSS 스타일과 동일하므로 유지됩니다) */
+  /* 기존 스타일 유지 */
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 14px; }
   .app { display: flex; height: 100vh; }
@@ -14,41 +14,33 @@
   .topbar { padding: 1rem 1.5rem; border-bottom: 1px solid #e8e8e6; background: #fff; display: flex; align-items: center; justify-content: space-between; }
   .topbar h2 { font-size: 16px; font-weight: 500; }
   .content { flex: 1; overflow-y: auto; padding: 1.5rem; }
-  .sidebar-logo { padding: 0 1rem 1rem; border-bottom: 1px solid #f0f0f0; margin-bottom: 1rem; font-weight: 700; font-size: 18px; color: #333; }
   .nav-item { padding: 0.6rem 1rem; cursor: pointer; color: #666; transition: 0.2s; border-radius: 6px; margin: 0 0.5rem; }
   .nav-item:hover { background: #f0f0f0; color: #000; }
   .nav-item.active { background: #e8e8e6; color: #000; font-weight: 500; }
   .card { background: #fff; border: 1px solid #e8e8e6; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.25rem; }
-  .btn { padding: 0.4rem 0.8rem; border-radius: 4px; border: 1px solid #d1d1d1; background: #fff; cursor: pointer; font-size: 13px; transition: 0.2s; }
-  .btn:hover { background: #f5f5f5; }
+  .btn { padding: 0.4rem 0.8rem; border-radius: 4px; border: 1px solid #d1d1d1; background: #fff; cursor: pointer; font-size: 13px; }
   .btn-primary { background: #000; color: #fff; border: none; }
-  .btn-primary:hover { background: #333; }
-  .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
-  .modal-content { background: #fff; width: 480px; border-radius: 10px; padding: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-  .form-group { margin-bottom: 1rem; }
-  .form-group label { display: block; margin-bottom: 0.4rem; color: #666; font-size: 12px; }
-  .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid #e8e8e6; border-radius: 4px; outline: none; }
-  .badge { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 500; }
-  .badge-plan { background: #f0f0f0; color: #666; }
-  .badge-ing { background: #e3f2fd; color: #1976d2; }
-  .badge-done { background: #e8f5e9; color: #2e7d32; }
   table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-  th { text-align: left; padding: 0.8rem; border-bottom: 2px solid #f0f0f0; color: #888; font-size: 12px; font-weight: 500; }
-  td { padding: 0.8rem; border-bottom: 1px solid #f0f0f0; }
+  th, td { padding: 0.8rem; border-bottom: 1px solid #f0f0f0; text-align: left; }
+  .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+  .modal-content { background: #fff; width: 500px; border-radius: 10px; padding: 1.5rem; }
+  .form-group { margin-bottom: 1rem; }
+  .form-group label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+  .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 0.5rem; border: 1px solid #e8e8e6; border-radius: 4px; }
 </style>
 </head>
 <body>
 
 <div class="app">
   <div class="sidebar">
-    <div class="sidebar-logo">💼 사업 관리</div>
+    <div style="padding: 0 1rem 1rem; font-weight: 700; font-size: 18px;">💼 사업 관리</div>
     <div class="nav-item active" onclick="showPage('dashboard')">대시보드</div>
     <div class="nav-item" onclick="showPage('projects')">사업 목록</div>
   </div>
   <div class="main">
     <div class="topbar">
       <h2 id="page-title">대시보드</h2>
-      <div id="topbar-actions"></div>
+      <span id="sync-status" style="font-size: 11px; color: #999;">DB 연결 확인 중...</span>
     </div>
     <div class="content" id="content"></div>
   </div>
@@ -57,111 +49,109 @@
 <div id="modal-container"></div>
 
 <script>
-  // 1. 기본 데이터 구조 (초기값)
-  let DB = {
-    nextId: 1,
-    projects: []
-  };
+  // 1. 기본 데이터 구조
+  let DB = { nextId: 1, projects: [] };
 
-  // 기존 localStorage 데이터 로드 (백업용 유지)
-  const saved = localStorage.getItem('biz_db');
+  // 로컬 저장소 로드
+  const saved = localStorage.getItem('biz_db_v2');
   if (saved) DB = JSON.parse(saved);
 
-  function saveDB() {
-    localStorage.setItem('biz_db', JSON.stringify(DB));
+  function saveLocal() {
+    localStorage.setItem('biz_db_v2', JSON.stringify(DB));
   }
 
-  // 2. 페이지 전환 및 렌더링 로직 (기존 유지)
+  // 2. 페이지 렌더링
   const pages = {
     dashboard: () => {
-      const ingCount = DB.projects.filter(p => p.status === '진행').length;
+      const total = DB.projects.length;
+      const ing = DB.projects.filter(p => p.status === '진행').length;
       document.getElementById('content').innerHTML = `
-        <div class="card">
-          <h3>진행 중인 사업: ${ingCount}건</h3>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="card"><h4>전체 사업</h4><h2>${total}건</h2></div>
+          <div class="card"><h4>진행 중</h4><h2>${ing}건</h2></div>
         </div>
       `;
     },
     projects: () => {
-      let html = `
-        <div style="margin-bottom:1rem; display:flex; justify-content:flex-end;">
-          <button class="btn btn-primary" onclick="openProjectModal()">+ 사업 추가</button>
+      document.getElementById('content').innerHTML = `
+        <div style="text-align:right; margin-bottom:1rem;">
+          <button class="btn btn-primary" onclick="openModal()">+ 사업 추가</button>
         </div>
         <div class="card">
           <table>
-            <thead>
-              <tr><th>사업명</th><th>상태</th><th>기한</th><th>관리</th></tr>
-            </thead>
+            <thead><tr><th>발주처</th><th>사업명</th><th>상태</th><th>기한</th><th>관리</th></tr></thead>
             <tbody>
               ${DB.projects.map(p => `
                 <tr>
+                  <td>${p.org_name || '-'}</td>
                   <td><strong>${p.name}</strong></td>
-                  <td><span class="badge ${p.status === '진행' ? 'badge-ing' : 'badge-done'}">${p.status}</span></td>
+                  <td>${p.status}</td>
                   <td>${p.due_date || '-'}</td>
-                  <td><button class="btn" onclick="openProjectModal(${p.id})">수정</button></td>
+                  <td><button class="btn" onclick="openModal(${p.id})">수정</button></td>
                 </tr>
               `).join('')}
             </tbody>
           </table>
         </div>`;
-      document.getElementById('content').innerHTML = html;
     }
   };
 
   function showPage(p) {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    event?.target?.classList?.add('active');
     document.getElementById('page-title').textContent = (p === 'dashboard' ? '대시보드' : '사업 목록');
     pages[p]();
   }
 
-  function openProjectModal(id = null) {
+  function openModal(id = null) {
     const p = id ? DB.projects.find(x => x.id === id) : null;
     document.getElementById('modal-container').innerHTML = `
       <div class="modal">
         <div class="modal-content">
-          <h3>${p ? '사업 수정' : '새 사업 추가'}</h3>
-          <div class="form-group"><label>사업명</label><input id="p-name" value="${p ? p.name : ''}"></div>
+          <h3>${p ? '사업 수정' : '새 사업 추가'}</h3><br>
+          <div class="form-group"><label>발주기관</label><input id="f-org" value="${p?.org_name || ''}"></div>
+          <div class="form-group"><label>사업명</label><input id="f-name" value="${p?.name || ''}"></div>
           <div class="form-group">
             <label>상태</label>
-            <select id="p-status">
-              <option value="진행" ${p?.status === '진행' ? 'selected' : ''}>진행</option>
-              <option value="완료" ${p?.status === '완료' ? 'selected' : ''}>완료</option>
+            <select id="f-status">
+              <option value="진행" ${p?.status === '진행'?'selected':''}>진행</option>
+              <option value="완료" ${p?.status === '완료'?'selected':''}>완료</option>
             </select>
           </div>
-          <div class="form-group"><label>기한</label><input type="date" id="p-date" value="${p ? p.due_date : ''}"></div>
-          <div class="form-group"><label>메모</label><textarea id="p-memo">${p ? p.memo : ''}</textarea></div>
+          <div class="form-group"><label>종료일</label><input type="date" id="f-date" value="${p?.due_date || ''}"></div>
+          <div class="form-group"><label>비고</label><textarea id="f-memo">${p?.memo || ''}</textarea></div>
           <div style="text-align:right;">
             <button class="btn" onclick="document.getElementById('modal-container').innerHTML=''">취소</button>
-            <button class="btn btn-primary" onclick="saveProject(${id})">저장</button>
+            <button class="btn btn-primary" onclick="handleSave(${id})">저장</button>
           </div>
         </div>
       </div>`;
   }
 
-  async function saveProject(id) {
+  async function handleSave(id) {
     const data = {
-      name: document.getElementById('p-name').value,
-      status: document.getElementById('p-status').value,
-      due_date: document.getElementById('p-date').value,
-      memo: document.getElementById('p-memo').value
+      org_name: document.getElementById('f-org').value,
+      name: document.getElementById('f-name').value,
+      status: document.getElementById('f-status').value,
+      due_date: document.getElementById('f-date').value,
+      memo: document.getElementById('f-memo').value
     };
 
     if (id) {
       const idx = DB.projects.findIndex(p => p.id === id);
       DB.projects[idx] = { ...DB.projects[idx], ...data };
+      data.id = id; // 업데이트를 위해 ID 포함
     } else {
       data.id = DB.nextId++;
       DB.projects.push(data);
     }
 
-    saveDB();
+    saveLocal();
     document.getElementById('modal-container').innerHTML = '';
-    
-    // DB 전송 (Supabase)
-    if (window.saveToSupabase) {
-      await window.saveToSupabase(data);
-    }
-    
     showPage('projects');
+
+    // Supabase 전송
+    if (window.saveToSupabase) window.saveToSupabase(data);
   }
 
   showPage('dashboard');
@@ -170,39 +160,36 @@
 <script type="module">
   import { createClient } from 'https://jspm.dev/@supabase/supabase-js'
 
-  // ⚠️ 아래 두 정보를 본인의 Supabase 정보로 꼭 교체하세요!
-  const supabaseUrl = 'https://본인_프로젝트_주소.supabase.co'; 
+  // ⚠️ 본인의 정보로 반드시 수정하세요!
+  const supabaseUrl = 'https://본인_프로젝트_주소.supabase.co';
   const supabaseKey = '본인의_anon_public_key';
-  const supabase = createClient(supabaseUrl, supabaseKey)
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // 전역 사용을 위해 설정
-  window.supabase = supabase;
+  const statusEl = document.getElementById('sync-status');
 
-  // 데이터 불러오기
-  async function loadFromSupabase() {
-    const { data, error } = await supabase.from('projects').select('*');
+  // DB에서 데이터 가져오기
+  async function loadDB() {
+    const { data, error } = await supabase.from('projects').select('*').order('id', { ascending: true });
     if (data) {
       DB.projects = data;
-      // ID 동기화 (다음 ID는 현재 최대 ID + 1)
-      if (data.length > 0) {
-        DB.nextId = Math.max(...data.map(p => p.id)) + 1;
-      }
-      showPage(document.getElementById('page-title').textContent === '사업 목록' ? 'projects' : 'dashboard');
+      if (data.length > 0) DB.nextId = Math.max(...data.map(p => p.id)) + 1;
+      saveLocal();
+      statusEl.textContent = '☁️ DB 동기화 완료';
+      showPage('dashboard');
+    } else {
+      statusEl.textContent = '❌ DB 연결 실패';
     }
   }
 
-  // 데이터 저장/수정 (Upsert: 있으면 업데이트, 없으면 삽입)
+  // DB에 저장/수정
   window.saveToSupabase = async function(projectData) {
-    const { data, error } = await supabase
-      .from('projects')
-      .upsert([projectData]);
-    
-    if (error) console.error('DB 저장 오류:', error.message);
-    else console.log('DB 동기화 완료');
+    statusEl.textContent = '⏳ 저장 중...';
+    const { error } = await supabase.from('projects').upsert([projectData]);
+    if (error) statusEl.textContent = '❌ 저장 오류';
+    else statusEl.textContent = '✅ DB 저장됨';
   }
 
-  // 앱 시작 시 데이터 로드
-  loadFromSupabase();
+  loadDB();
 </script>
 
 </body>
