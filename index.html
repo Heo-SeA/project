@@ -984,5 +984,17 @@ document.getElementById('today-date').textContent =
 
 showPage('dashboard');
 </script>
+ <script type="module">
+      import { createClient } from 'https://jspm.dev/@supabase/supabase-js'
+
+      const supabaseUrl = 'https://heo-sea.github.io/project'
+      const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZ3p1cHdmam1hZmFpdWpia2t6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4OTA4NjksImV4cCI6MjA5MjQ2Njg2OX0.l7BmUVw24HC322fbFX4av_4pU0Zd4j92nm_xfGtmpS4'
+      const supabase = createClient(supabaseUrl, supabaseKey)
+
+      // 이제 여기서부터 supabase 변수를 사용해서 데이터를 주고받을 수 있습니다.
+      window.supabase = supabase; // 다른 일반 script 태그에서도 쓸 수 있게 등록
+    </script>
+
+  </body> </html>
 </body>
 </html>
