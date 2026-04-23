@@ -160,26 +160,60 @@
 <script type="module">
   import { createClient } from 'https://jspm.dev/@supabase/supabase-js'
 
-  // ⚠️ 본인의 정보로 반드시 수정하세요!
-  const supabaseUrl = 'https://isgzupwfjmafaiujbkkz.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZ3p1cHdmam1hZmFpdWpia2t6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4OTA4NjksImV4cCI6MjA5MjQ2Njg2OX0.l7BmUVw24HC322fbFX4av_4pU0Zd4j92nm_xfGtmpS4';
+  // ⚠️ 여기 두 정보를 본인의 Supabase 정보로 정확히 교체하세요!
+  const supabaseUrl = 'https://isgzupwfjmafaiujbkkz.supabase.co'; 
+  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzZ3p1cHdmam1hZmFpdWpia2t6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4OTA4NjksImV4cCI6MjA5MjQ2Njg2OX0.l7BmUVw24HC322fbFX4av_4pU0Zd4j92nm_xfGtmpS4'; // anon key
   const supabase = createClient(supabaseUrl, supabaseKey);
+
+  // 전역 사용을 위해 설정
+  window.supabase = supabase;
 
   const statusEl = document.getElementById('sync-status');
 
-  // DB에서 데이터 가져오기
-  async function loadDB() {
-    const { data, error } = await supabase.from('projects').select('*').order('id', { ascending: true });
-    if (data) {
-      DB.projects = data;
-      if (data.length > 0) DB.nextId = Math.max(...data.map(p => p.id)) + 1;
-      saveLocal();
-      statusEl.textContent = '☁️ DB 동기화 완료';
-      showPage('dashboard');
-    } else {
-      statusEl.textContent = '❌ DB 연결 실패';
+  // DB에서 데이터 로드 함수
+  async function loadData() {
+    try {
+      const { data, error } = await supabase
+        .from('projects') // SQL로 만든 소문자 projects 테이블
+        .select('*')
+        .order('id', { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        DB.projects = data;
+        // 다음 ID 세팅
+        if (data.length > 0) DB.nextId = Math.max(...data.map(p => p.id)) + 1;
+        
+        // 화면 갱신
+        const currentTitle = document.getElementById('page-title').textContent;
+        if (currentTitle === '사업 목록') pages.projects();
+        else pages.dashboard();
+
+        if (statusEl) statusEl.innerHTML = '☁️ DB 동기화 완료';
+      }
+    } catch (err) {
+      console.error('DB 로드 실패:', err.message);
+      if (statusEl) statusEl.innerHTML = '❌ DB 연결 실패';
     }
   }
+
+  // DB에 저장/수정 함수
+  window.saveToSupabase = async function(projectData) {
+    if (statusEl) statusEl.textContent = '⏳ 저장 중...';
+    const { error } = await supabase.from('projects').upsert([projectData]);
+    if (error) {
+        console.error('저장 에러:', error.message);
+        if (statusEl) statusEl.textContent = '❌ 저장 실패';
+    } else {
+        if (statusEl) statusEl.textContent = '✅ DB 저장됨';
+        loadData(); // 최신 데이터로 다시 로드
+    }
+  }
+
+  // 실행
+  loadData();
+</script>
 
   // DB에 저장/수정
   window.saveToSupabase = async function(projectData) {
