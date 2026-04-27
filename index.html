@@ -500,19 +500,19 @@ function renderScheduleList(tab) {
     <div class="card" style="padding:0;overflow:hidden">
       ${evts.length ? evts.map(e => {
         const proj = DB.projects.find(p => p.id === e.project_id);
-        return `<div style="padding:1rem 1.25rem;border-bottom:1px solid #f0f0ee;display:flex;align-items:flex-start;gap:12px">
-          <div style="min-width:72px;font-size:12px;color:#888;padding-top:3px">${fmtDate(e.date)}</div>
-          <div style="flex:1">
-            <div style="font-weight:500;margin-bottom:3px">${e.title}</div>
+        return `<div style="padding:1rem 1.25rem;border-bottom:1px solid #f0f0ee;display:flex;align-items:center;gap:12px">
+          <div style="min-width:72px;font-size:12px;color:#888;flex-shrink:0">${fmtDate(e.date)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
+              <span style="font-weight:500">${e.title}</span>
+              ${e.status==='예정'?ddayBadge(e.date):statusBadge(e.status)}
+            </div>
             <div style="font-size:12px;color:#888">${proj?proj.name:''} · <span style="background:#f0f0ee;padding:1px 6px;border-radius:4px">${e.type||''}</span></div>
             ${e.memo?`<div style="font-size:12px;color:#888;margin-top:4px">${e.memo}</div>`:''}
           </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-            ${e.status==='예정'?ddayBadge(e.date):statusBadge(e.status)}
-            <div style="display:flex;gap:4px">
-              <button class="btn btn-sm" onclick="openEditEvent(${e.id})">수정</button>
-              ${e.status==='예정'?`<button class="btn btn-sm" onclick="completeEvent(${e.id})">완료</button>`:''}
-            </div>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button class="btn btn-sm" onclick="openEditEvent(${e.id})">수정</button>
+            ${e.status==='예정'?`<button class="btn btn-sm" onclick="completeEvent(${e.id})">완료</button>`:''}
           </div>
         </div>`;
       }).join('') : '<div class="empty">일정이 없어요</div>'}
@@ -638,7 +638,7 @@ function openProject(id) {
         <div class="metric"><div class="metric-label">담당 PM</div><div style="font-size:14px;font-weight:600">${p.pm_name||'-'}</div></div>
         <div class="metric"><div class="metric-label">시스템</div><div style="font-size:14px;font-weight:600">${p.sys_type||'-'}</div></div>
         <div class="metric"><div class="metric-label">기간</div><div style="font-size:12px;font-weight:500;padding-top:2px">${fmtDate(p.start_date)} ~ ${fmtDate(p.due_date)}</div></div>
-        <div class="metric"><div class="metric-label">사업비 (VAT제외)</div><div style="font-size:13px;font-weight:600;padding-top:2px">${(p.budget_no_vat||0).toLocaleString()}원</div></div>
+        <div class="metric"><div class="metric-label">총 사업비 (VAT포함)</div><div style="font-size:13px;font-weight:600;padding-top:2px">${(p.budget_vat||0).toLocaleString()}원</div></div>
       </div>
       ${p.billing?`<div style="font-size:12px;color:#888;margin-bottom:.75rem">청구방식: <strong>${p.billing}</strong></div>`:''}
       ${contacts?`<div style="font-size:12px;font-weight:500;color:#888;margin-bottom:6px">기관 담당자</div>${contacts}`:''}
