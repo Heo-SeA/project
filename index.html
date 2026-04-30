@@ -432,9 +432,9 @@ const pages = {
 
     document.getElementById('content').innerHTML = `
       <div class="tab-bar">
-        <button class="tab ${f==='all'?'active':''}"         onclick="window._projFilter='all';pages.projects()">전체</button>
-        <button class="tab ${f==='project'?'active':''}"     onclick="window._projFilter='project';pages.projects()">프로젝트</button>
-        <button class="tab ${f==='maintenance'?'active':''}" onclick="window._projFilter='maintenance';pages.projects()">유지보수</button>
+        <button class="tab ${f==='all'?'active':''}"         onclick="window._projFilter='all';pages.projects()">전체 <span style="opacity:.7">${DB.projects.length}</span></button>
+        <button class="tab ${f==='project'?'active':''}"     onclick="window._projFilter='project';pages.projects()">프로젝트 <span style="opacity:.7">${DB.projects.filter(p=>p.biz_type==='project').length}</span></button>
+        <button class="tab ${f==='maintenance'?'active':''}" onclick="window._projFilter='maintenance';pages.projects()">유지보수 <span style="opacity:.7">${DB.projects.filter(p=>p.biz_type==='maintenance').length}</span></button>
       </div>
       <div class="card" style="padding:0;overflow:hidden">
         ${list.length ? list.map(p => `
@@ -463,7 +463,7 @@ const pages = {
     document.getElementById('content').innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <div class="tab-bar" style="margin:0">
-          ${['전체','예정','완료'].map(t=>`<button class="tab ${t===activeTab?'active':''}" onclick="window._scheduleTab='${t}';pages.schedule()">${t}</button>`).join('')}
+          ${['전체','예정','종료'].map(t=>`<button class="tab ${t===activeTab?'active':''}" onclick="window._scheduleTab='${t}';pages.schedule()">${t}</button>`).join('')}
         </div>
         <div class="tab-bar" style="margin:0">
           <button class="tab ${activeView==='list'?'active':''}" onclick="window._scheduleView='list';pages.schedule()">목록</button>
@@ -488,31 +488,38 @@ const pages = {
   }
 };
 
+// ── 일정 상태 판단 (날짜 지나면 종료로 간주, DB는 건드리지 않음) ──
+function evtDisplayStatus(e) {
+  if (e.status === '완료') return '종료';
+  if (e.date && dday(e.date) < 0) return '종료';
+  return '예정';
+}
+
 // ── 일정 목록 ──
 function renderScheduleList(tab) {
   const DB = window._DB;
   let evts = [...DB.events];
-  if (tab === '예정') evts = evts.filter(e => e.status === '예정');
-  if (tab === '완료') evts = evts.filter(e => e.status === '완료');
+  if (tab === '예정') evts = evts.filter(e => evtDisplayStatus(e) === '예정');
+  if (tab === '종료') evts = evts.filter(e => evtDisplayStatus(e) === '종료');
   evts.sort((a,b) => new Date(a.date)-new Date(b.date));
 
   document.getElementById('schedule-body').innerHTML = `
     <div class="card" style="padding:0;overflow:hidden">
       ${evts.length ? evts.map(e => {
         const proj = DB.projects.find(p => p.id === e.project_id);
-        return `<div style="padding:1rem 1.25rem;border-bottom:1px solid #f0f0ee;display:flex;align-items:center;gap:12px">
+        const dispStatus = evtDisplayStatus(e);
+        return `<div style="padding:1rem 1.25rem;border-bottom:1px solid #f0f0ee;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openEventDetail(${e.id})">
           <div style="min-width:72px;font-size:12px;color:#888;flex-shrink:0">${fmtDate(e.date)}</div>
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
               <span style="font-weight:500">${e.title}</span>
-              ${e.status==='예정'?ddayBadge(e.date):statusBadge(e.status)}
+              ${dispStatus==='예정'?ddayBadge(e.date):'<span class="dday dday-past">종료</span>'}
             </div>
             <div style="font-size:12px;color:#888">${proj?proj.name:''} · <span style="background:#f0f0ee;padding:1px 6px;border-radius:4px">${e.type||''}</span></div>
             ${e.memo?`<div style="font-size:12px;color:#888;margin-top:4px">${e.memo}</div>`:''}
           </div>
-          <div style="display:flex;gap:4px;flex-shrink:0">
+          <div style="display:flex;gap:4px;flex-shrink:0" onclick="event.stopPropagation()">
             <button class="btn btn-sm" onclick="openEditEvent(${e.id})">수정</button>
-            ${e.status==='예정'?`<button class="btn btn-sm" onclick="completeEvent(${e.id})">완료</button>`:''}
           </div>
         </div>`;
       }).join('') : '<div class="empty">일정이 없어요</div>'}
@@ -568,19 +575,49 @@ function calMove(dir) {
   if (calMonth < 0)  { calMonth=11; calYear--; }
   renderCalendar();
 }
-function quickViewEvent(id) {
+function quickViewEvent(id) { openEventDetail(id); }
+
+function openEventDetail(id) {
   const e = window._DB.events.find(x => x.id===id);
   if (!e) return;
   const proj = window._DB.projects.find(p => p.id===e.project_id);
-  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal" style="width:360px">
-      <h3>${e.title}</h3>
-      <div style="font-size:13px;color:#555;margin-bottom:1rem;line-height:1.8">
-        <div>날짜: ${fmtDate(e.date)} &nbsp; ${e.status==='예정'?ddayBadge(e.date):statusBadge(e.status)}</div>
-        <div>유형: ${e.type||''}</div>
-        ${proj?`<div>사업: ${proj.name}</div>`:''}
-        ${e.memo?`<div style="margin-top:6px;padding:8px;background:#f5f5f3;border-radius:6px">${e.memo}</div>`:''}
+  const dispStatus = evtDisplayStatus(e);
+
+  const projSection = proj ? `
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid #f0f0ee">
+      <div style="font-size:11px;font-weight:600;color:#7F77DD;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem">연결된 사업</div>
+      <div style="background:#f9f9f7;border-radius:10px;padding:.85rem 1rem;border:1px solid #ebebea">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          ${proj.biz_type==='project'?'<span class="biz-proj">프로젝트</span>':'<span class="biz-maint">유지보수</span>'}
+          <span style="font-weight:600;font-size:14px">${proj.name}</span>
+          ${statusBadge(proj.status)}
+        </div>
+        <div style="font-size:12px;color:#888;display:flex;flex-direction:column;gap:3px">
+          <div>PM ${proj.pm_name||'-'} · ${proj.sys_type||'-'}</div>
+          <div>${fmtDate(proj.start_date)} ~ ${fmtDate(proj.due_date)}</div>
+        </div>
       </div>
+      <div style="margin-top:8px;text-align:right">
+        <button class="btn btn-sm" onclick="closeModalForce();openProject(${proj.id})">사업 상세보기 →</button>
+      </div>
+    </div>` : '';
+
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" style="width:420px">
+      <h3>${e.title}</h3>
+      <div style="font-size:13px;color:#555;line-height:1.9">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <span style="color:#888;min-width:32px">날짜</span>
+          <span>${fmtDate(e.date)}</span>
+          ${dispStatus==='예정'?ddayBadge(e.date):'<span class="dday dday-past">종료</span>'}
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:4px">
+          <span style="color:#888;min-width:32px">유형</span>
+          <span style="background:#f0f0ee;padding:1px 8px;border-radius:4px;font-size:12px">${e.type||'-'}</span>
+        </div>
+        ${e.memo?`<div style="margin-top:8px;padding:10px 12px;background:#f5f5f3;border-radius:8px;font-size:13px;line-height:1.7">${e.memo}</div>`:''}
+      </div>
+      ${projSection}
       <div class="modal-footer">
         <button class="btn" onclick="closeModalForce()">닫기</button>
         <button class="btn btn-primary" onclick="closeModalForce();openEditEvent(${e.id})">수정</button>
@@ -627,33 +664,64 @@ function openProject(id) {
     </div>`;
   }).join('');
 
+  // 섹션 헬퍼: 항상 표시
+  function row(label, val) {
+    return `<div style="display:flex;gap:0;border-bottom:1px solid #f5f5f3">
+      <div style="width:120px;flex-shrink:0;font-size:12px;color:#888;padding:8px 0">${label}</div>
+      <div style="flex:1;font-size:13px;color:#1a1a1a;padding:8px 0">${val||'-'}</div>
+    </div>`;
+  }
+
   document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal" style="width:600px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1rem">
+    <div class="modal" style="width:620px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1.25rem">
         ${bizBadge(p.biz_type)}
-        <h3 style="flex:1;margin:0">${p.name}</h3>
+        <h3 style="flex:1;margin:0;font-size:16px">${p.name}</h3>
         ${statusBadge(p.status)}
       </div>
-      <div class="grid2" style="margin-bottom:1rem">
-        <div class="metric"><div class="metric-label">담당 PM</div><div style="font-size:14px;font-weight:600">${p.pm_name||'-'}</div></div>
-        <div class="metric"><div class="metric-label">시스템</div><div style="font-size:14px;font-weight:600">${p.sys_type||'-'}</div></div>
-        <div class="metric"><div class="metric-label">기간</div><div style="font-size:12px;font-weight:500;padding-top:2px">${fmtDate(p.start_date)} ~ ${fmtDate(p.due_date)}</div></div>
-        <div class="metric"><div class="metric-label">총 사업비 (VAT포함)</div><div style="font-size:13px;font-weight:600;padding-top:2px">${(p.budget_vat||0).toLocaleString()}원</div></div>
+
+      <!-- 기본 정보 -->
+      <div style="background:#f9f9f7;border-radius:10px;padding:.25rem .75rem;margin-bottom:1rem;border:1px solid #ebebea">
+        ${row('사업 유형', p.project_type)}
+        ${row('시스템 구분', p.sys_type)}
+        ${row('담당 PM', p.pm_name)}
+        ${row('디자인 / 퍼블 / 개발', [p.design_name,p.pub_name,p.dev_name].filter(Boolean).join(' / ')||'-')}
+        ${row('사업 기간', (p.start_date&&p.due_date)?fmtDate(p.start_date)+' ~ '+fmtDate(p.due_date):'-')}
+        ${row('총 사업비 (VAT포함)', p.budget_vat?(p.budget_vat).toLocaleString()+'원':'-')}
+        ${row('사업비 (VAT제외)', p.budget_no_vat?(p.budget_no_vat).toLocaleString()+'원':'-')}
+        ${row('대금 청구 방식', p.billing)}
       </div>
-      ${p.billing?`<div style="font-size:12px;color:#888;margin-bottom:.75rem">청구방식: <strong>${p.billing}</strong></div>`:''}
-      ${contacts?`<div style="font-size:12px;font-weight:500;color:#888;margin-bottom:6px">기관 담당자</div>${contacts}`:''}
-      ${adminEvts?`<div style="font-size:12px;font-weight:500;color:#888;margin:.75rem 0 4px">행정 이벤트</div>${adminEvts}`:''}
-      ${directs?`<div style="font-size:12px;font-weight:500;color:#888;margin:.75rem 0 4px">직접비</div>${directs}`:''}
-      ${p.note?`<div style="background:#f5f5f3;border-radius:8px;padding:.75rem;font-size:13px;margin-top:.75rem;white-space:pre-wrap;line-height:1.7">${p.note}</div>`:''}
-      ${relEvents.length?`
-        <div style="font-size:12px;font-weight:500;color:#888;margin:.75rem 0 4px">관련 일정</div>
+
+      <!-- 직접비 -->
+      ${directs ? `<div style="font-size:11px;font-weight:600;color:#7F77DD;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">직접비</div>
+      <div style="background:#f9f9f7;border-radius:10px;padding:.25rem .75rem;margin-bottom:1rem;border:1px solid #ebebea">${directs}</div>` : ''}
+
+      <!-- 기관 담당자 -->
+      ${contacts ? `<div style="font-size:11px;font-weight:600;color:#7F77DD;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">기관 담당자</div>
+      <div style="margin-bottom:1rem">${contacts}</div>` : ''}
+
+      <!-- 행정 이벤트 -->
+      ${adminEvts ? `<div style="font-size:11px;font-weight:600;color:#7F77DD;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">행정 이벤트</div>
+      <div style="background:#f9f9f7;border-radius:10px;padding:.25rem .75rem;margin-bottom:1rem;border:1px solid #ebebea">${adminEvts}</div>` : ''}
+
+      <!-- 비고 / 진행현황 -->
+      ${p.note?`<div style="font-size:11px;font-weight:600;color:#7F77DD;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">비고</div>
+      <div style="background:#f9f9f7;border-radius:10px;padding:.75rem 1rem;font-size:13px;margin-bottom:1rem;white-space:pre-wrap;line-height:1.7;border:1px solid #ebebea">${p.note}</div>`:''}
+      ${p.progress_memo?`<div style="font-size:11px;font-weight:600;color:#7F77DD;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">진행현황</div>
+      <div style="background:#f9f9f7;border-radius:10px;padding:.75rem 1rem;font-size:13px;margin-bottom:1rem;white-space:pre-wrap;line-height:1.7;border:1px solid #ebebea">${p.progress_memo}</div>`:''}
+
+      <!-- 관련 일정 -->
+      ${relEvents.length?`<div style="font-size:11px;font-weight:600;color:#7F77DD;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">관련 일정</div>
+      <div style="background:#f9f9f7;border-radius:10px;padding:.25rem .75rem;margin-bottom:1rem;border:1px solid #ebebea">
         ${relEvents.map(e=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f0f0ee;font-size:13px">
           <span>${e.title}</span>
           <div style="display:flex;gap:6px;align-items:center">
             <span style="color:#888;font-size:12px">${fmtDate(e.date)}</span>
-            ${e.status==='예정'?ddayBadge(e.date):statusBadge(e.status)}
+            ${evtDisplayStatus(e)==='예정'?ddayBadge(e.date):'<span class="dday dday-past">종료</span>'}
           </div>
-        </div>`).join('')}`:''}
+        </div>`).join('')}
+      </div>`:''}
+
       <div class="modal-footer">
         <button class="btn btn-danger" onclick="deleteProject(${id})">삭제</button>
         <button class="btn" onclick="closeModalForce()">닫기</button>
