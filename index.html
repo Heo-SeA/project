@@ -115,6 +115,7 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
 .cal-cell:nth-child(7n) { border-right: none; }
 .cal-cell.other-month { background: #fafaf9; }
 .cal-cell.today { background: #f0effe; }
+  .cal-selected { outline: 2px solid #7F77DD; border-radius: 4px; }
 .cal-day { font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; }
 .cal-cell.today .cal-day { background: #7F77DD; color: #fff; }
 .cal-event { font-size: 10px; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
@@ -458,20 +459,21 @@ const pages = {
   },
 
   schedule() {
-    const activeView = window._scheduleView || 'list';
-    const activeTab  = window._scheduleTab  || '전체';
+    const activeTab = window._scheduleTab || '전체';
     document.getElementById('content').innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
-        <div class="tab-bar" style="margin:0">
-          ${['전체','예정','종료'].map(t=>`<button class="tab ${t===activeTab?'active':''}" onclick="window._scheduleTab='${t}';pages.schedule()">${t}</button>`).join('')}
+      <div style="display:flex;gap:1rem;align-items:flex-start">
+        <!-- 좌측: 전체 일정 목록 -->
+        <div style="flex:6;min-width:0">
+          <div class="tab-bar" style="margin-bottom:1rem">
+            ${['전체','예정','종료'].map(t=>`<button class="tab ${t===activeTab?'active':''}" onclick="window._scheduleTab='${t}';pages.schedule()">${t}</button>`).join('')}
+          </div>
+          <div id="schedule-list"></div>
         </div>
-        <div class="tab-bar" style="margin:0">
-          <button class="tab ${activeView==='list'?'active':''}" onclick="window._scheduleView='list';pages.schedule()">목록</button>
-          <button class="tab ${activeView==='cal'?'active':''}"  onclick="window._scheduleView='cal';pages.schedule()">캘린더</button>
-        </div>
-      </div>
-      <div id="schedule-body"></div>`;
-    activeView === 'cal' ? renderCalendar() : renderScheduleList(activeTab);
+        <!-- 우측: 캘린더 + 해당월 목록 -->
+        <div style="flex:4;min-width:0" id="schedule-cal-wrap"></div>
+      </div>`;
+    renderScheduleList(activeTab);
+    renderCalendar();
   },
 
   memos() {
@@ -503,12 +505,12 @@ function renderScheduleList(tab) {
   if (tab === '종료') evts = evts.filter(e => evtDisplayStatus(e) === '종료');
   evts.sort((a,b) => new Date(a.date)-new Date(b.date));
 
-  document.getElementById('schedule-body').innerHTML = `
+  document.getElementById('schedule-list').innerHTML = `
     <div class="card" style="padding:0;overflow:hidden">
       ${evts.length ? evts.map(e => {
         const proj = DB.projects.find(p => p.id === e.project_id);
         const dispStatus = evtDisplayStatus(e);
-        return `<div style="padding:1rem 1.25rem;border-bottom:1px solid #f0f0ee;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="openEventDetail(${e.id})">
+        return `<div data-evt-id="${e.id}" style="padding:1rem 1.25rem;border-bottom:1px solid #f0f0ee;display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s" onclick="openEventDetail(${e.id})">
           <div style="min-width:72px;font-size:12px;color:#888;flex-shrink:0">${fmtDate(e.date)}</div>
           <div style="flex:1;min-width:0">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap">
@@ -527,48 +529,95 @@ function renderScheduleList(tab) {
 }
 
 // ── 캘린더 ──
-let calYear, calMonth;
+let calYear, calMonth, calSelectedDate;
 function renderCalendar() {
   const DB = window._DB;
   const now = new Date();
   if (calYear  === undefined) calYear  = now.getFullYear();
   if (calMonth === undefined) calMonth = now.getMonth();
-  const firstDay = new Date(calYear, calMonth, 1);
+  const firstDay    = new Date(calYear, calMonth, 1);
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-  const startDow = firstDay.getDay();
-  const todayStr = today();
-  const monthStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
+  const startDow    = firstDay.getDay();
+  const todayStr    = today();
+  const monthStr    = `${calYear}-${String(calMonth+1).padStart(2,'0')}`;
   const monthEvents = DB.events.filter(e => e.date && e.date.startsWith(monthStr));
+  // 날짜별 이벤트 맵
+  const evtMap = {};
+  monthEvents.forEach(e => { if (!evtMap[e.date]) evtMap[e.date]=[]; evtMap[e.date].push(e); });
+
   let cells = '';
   const prevLast = new Date(calYear, calMonth, 0).getDate();
   for (let i = startDow-1; i >= 0; i--)
     cells += `<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc">${prevLast-i}</span></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isToday = ds === todayStr;
-    const de = monthEvents.filter(e => e.date === ds);
-    cells += `<div class="cal-cell${isToday?' today':''}">
+    const isToday    = ds === todayStr;
+    const isSelected = ds === calSelectedDate;
+    const hasEvt     = evtMap[ds] && evtMap[ds].length > 0;
+    cells += `<div class="cal-cell${isToday?' today':''}${isSelected?' cal-selected':''}" onclick="calSelectDate('${ds}')">
       <span class="cal-day">${d}</span>
-      ${de.map(e=>`<div class="cal-event ${evColorClass(e.date,e.status)}" onclick="quickViewEvent(${e.id})" title="${e.title}">${e.title}</div>`).join('')}
+      ${hasEvt ? `<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:2px">${evtMap[ds].map(e=>`<div style="width:5px;height:5px;border-radius:50%;background:${evtDisplayStatus(e)==='예정'?'#7F77DD':'#ccc'}"></div>`).join('')}</div>` : ''}
     </div>`;
   }
   const rem = (startDow+daysInMonth)%7;
   for (let i = 1; i <= (rem?7-rem:0); i++)
     cells += `<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc">${i}</span></div>`;
+
   const label = new Date(calYear, calMonth).toLocaleDateString('ko-KR', {year:'numeric',month:'long'});
-  document.getElementById('schedule-body').innerHTML = `
-    <div class="card">
-      <div class="cal-nav">
-        <button onclick="calMove(-1)">◀</button>
-        <h3>${label}</h3>
-        <button onclick="calMove(1)">▶</button>
+
+  // 해당 월 일정 목록
+  const sortedMonthEvts = [...monthEvents].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const monthListHtml = sortedMonthEvts.length ? sortedMonthEvts.map(e => {
+    const proj = DB.projects.find(p => p.id === e.project_id);
+    const ds   = evtDisplayStatus(e);
+    const isHl = e.date === calSelectedDate;
+    return `<div id="cal-evt-${e.id}" style="padding:8px 10px;border-bottom:0.5px solid #f0f0ee;cursor:pointer;border-radius:6px;background:${isHl?'#f0effe':'transparent'}" onclick="openEventDetail(${e.id})">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <span style="font-size:11px;color:#888;flex-shrink:0">${fmtDate(e.date)}</span>
+        ${ds==='예정'?ddayBadge(e.date):'<span class="dday dday-past">종료</span>'}
       </div>
-      <div class="cal-grid">
+      <div style="font-size:12px;font-weight:500;margin-top:2px;color:#1a1a1a">${e.title}</div>
+      ${proj?`<div style="font-size:11px;color:#aaa;margin-top:1px">${proj.name}</div>`:''}
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:1.5rem;font-size:12px;color:#aaa">이달 일정이 없어요</div>`;
+
+  const wrap = document.getElementById('schedule-cal-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = `
+    <div class="card" style="padding:.75rem;margin-bottom:.75rem">
+      <div class="cal-nav" style="margin-bottom:.5rem">
+        <button onclick="calMove(-1)" style="padding:4px 10px;font-size:13px;border:0.5px solid #d0d0cc;border-radius:8px;background:transparent;cursor:pointer">◀</button>
+        <span style="font-size:14px;font-weight:500">${label}</span>
+        <button onclick="calMove(1)"  style="padding:4px 10px;font-size:13px;border:0.5px solid #d0d0cc;border-radius:8px;background:transparent;cursor:pointer">▶</button>
+      </div>
+      <div class="cal-grid" style="font-size:11px">
         ${['일','월','화','수','목','금','토'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}
         ${cells}
       </div>
+    </div>
+    <div class="card" style="padding:.5rem .75rem">
+      <div style="font-size:11px;font-weight:600;color:#7F77DD;text-transform:uppercase;letter-spacing:.05em;padding:.25rem .25rem .5rem">${label} 일정</div>
+      <div id="cal-month-list">${monthListHtml}</div>
     </div>`;
 }
+
+function calSelectDate(ds) {
+  // 좌측 목록에서 해당 날짜 이벤트 하이라이트
+  calSelectedDate = ds;
+  const DB = window._DB;
+  const evts = DB.events.filter(e => e.date === ds);
+  // 좌측 목록 전체 하이라이트 초기화 후 해당 항목 강조
+  document.querySelectorAll('#schedule-list [data-evt-id]').forEach(el => {
+    el.style.background = 'transparent';
+  });
+  evts.forEach(e => {
+    const el = document.querySelector(`#schedule-list [data-evt-id="${e.id}"]`);
+    if (el) { el.style.background = '#f0effe'; el.scrollIntoView({block:'nearest',behavior:'smooth'}); }
+  });
+  // 캘린더 다시 그려서 선택 날짜 표시 + 월 목록 하이라이트
+  renderCalendar();
+}
+
 function calMove(dir) {
   calMonth += dir;
   if (calMonth > 11) { calMonth=0; calYear++; }
