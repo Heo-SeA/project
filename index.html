@@ -115,7 +115,7 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
 .cal-cell:nth-child(7n) { border-right: none; }
 .cal-cell.other-month { background: #fafaf9; }
 .cal-cell.today { background: #f0effe; }
-  .cal-selected { outline: 2px solid #7F77DD; border-radius: 4px; }
+  .cal-selected { box-shadow: inset 0 0 0 2px #7F77DD; border-radius: 4px; background: #f0effe; }
 .cal-day { font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; }
 .cal-cell.today .cal-day { background: #7F77DD; color: #fff; }
 .cal-event { font-size: 10px; padding: 2px 5px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
@@ -556,7 +556,7 @@ function renderCalendar() {
     const hasEvt     = evtMap[ds] && evtMap[ds].length > 0;
     cells += `<div class="cal-cell${isToday?' today':''}${isSelected?' cal-selected':''}" onclick="calSelectDate('${ds}')">
       <span class="cal-day">${d}</span>
-      ${hasEvt ? `<div style="display:flex;gap:2px;flex-wrap:wrap;margin-top:2px">${evtMap[ds].map(e=>`<div style="width:5px;height:5px;border-radius:50%;background:${evtDisplayStatus(e)==='예정'?'#7F77DD':'#ccc'}"></div>`).join('')}</div>` : ''}
+      ${hasEvt ? `<div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center;margin-top:3px">${evtMap[ds].slice(0,3).map(e=>`<div style="height:3px;width:${evtMap[ds].length===1?'16px':'8px'};border-radius:2px;background:${evtDisplayStatus(e)==='예정'?'#7F77DD':'#bbb'}"></div>`).join('')}${evtMap[ds].length>3?`<div style="height:3px;width:4px;border-radius:2px;background:#bbb"></div>`:''}</div>` : ''}
     </div>`;
   }
   const rem = (startDow+daysInMonth)%7;
@@ -652,7 +652,7 @@ function openEventDetail(id) {
     </div>` : '';
 
   document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal" style="width:420px">
+    <div class="modal" style="width:560px">
       <h3>${e.title}</h3>
       <div style="font-size:13px;color:#555;line-height:1.9">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
