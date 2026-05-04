@@ -691,6 +691,19 @@ function renderDashboardCal() {
 
 function dbCalSelect(ds) {
   dbCalSelected = ds;
+  // 좌측 일정 목록 하이라이트
+  const DB = window._DB;
+  const evts = DB.events.filter(e => e.date === ds);
+  document.querySelectorAll('.event-row').forEach(el => {
+    el.style.background = '';
+  });
+  evts.forEach(e => {
+    const el = document.querySelector(`.event-row[data-eid="${e.id}"]`);
+    if (el) {
+      el.style.background = '#f0effe';
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  });
   renderDashboardCal();
 }
 function dbCalMove(dir) {
