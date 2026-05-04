@@ -395,22 +395,30 @@ const pages = {
         <div class="metric"><div class="metric-label">30일 내 일정</div><div class="metric-value">${upcoming}건</div></div>
         <div class="metric"><div class="metric-label">기한 초과</div><div class="metric-value" style="color:#a32d2d">${overdue}건</div></div>
       </div>
-      <div class="card">
-        <h3>다가오는 일정</h3>
-        ${sorted.length ? sorted.map(e => {
-          const proj = DB.projects.find(p => p.id === e.project_id);
-          return `<div class="event-row">
-            <div class="event-dot ${dotClass(e.date, e.status)}"></div>
-            <div style="flex:1;min-width:0">
-              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                <span style="font-weight:500">${e.title}</span>
-                ${ddayBadge(e.date)}
+      <div style="display:flex;gap:1rem;align-items:flex-start;margin-bottom:1rem">
+        <!-- 좌측: 30일 이내 일정 목록 -->
+        <div class="card" style="flex:6;min-width:0;margin-bottom:0">
+          <h3>다가오는 일정 <span style="font-size:11px;color:#aaa;font-weight:400">30일 이내</span></h3>
+          ${sorted.length ? sorted.map(e => {
+            const proj = DB.projects.find(p => p.id === e.project_id);
+            return `<div class="event-row" style="cursor:pointer" onclick="showPage('schedule')">
+              <div class="event-dot ${dotClass(e.date, e.status)}"></div>
+              <div style="flex:1;min-width:0">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                  <span style="font-weight:500">${e.title}</span>
+                  ${ddayBadge(e.date)}
+                </div>
+                <div style="font-size:11px;color:#888;margin-top:2px">${proj?proj.name:''} · ${e.type||''}</div>
               </div>
-              <div style="font-size:11px;color:#888;margin-top:2px">${proj?proj.name:''} · ${e.type||''}</div>
-            </div>
-            <span style="font-size:12px;color:#888;white-space:nowrap">${fmtDate(e.date)}</span>
-          </div>`;
-        }).join('') : '<div class="empty">예정된 일정이 없어요</div>'}
+              <span style="font-size:12px;color:#888;white-space:nowrap">${fmtDate(e.date)}</span>
+            </div>`;
+          }).join('') : '<div class="empty" style="padding:2rem">30일 이내 예정된 일정이 없어요</div>'}
+        </div>
+        <!-- 우측: 미니 캘린더 -->
+        <div style="flex:4;min-width:0">
+          <div class="card" style="padding:.75rem;margin-bottom:.75rem" id="db-cal-wrap">
+          </div>
+        </div>
       </div>
       <div class="card">
         <h3>진행중 사업</h3>
@@ -422,6 +430,7 @@ const pages = {
             ${statusBadge(p.status)}
           </div>`).join('')}
       </div>`;
+    renderDashboardCal();
   },
 
   projects() {
@@ -449,7 +458,7 @@ const pages = {
               </div>
               <div style="display:flex;gap:16px;font-size:12px;color:#888">
                 <span>${fmtDate(p.start_date)} ~ ${fmtDate(p.due_date)}</span>
-                <span>예산 ${(p.budget_no_vat||0).toLocaleString()}원 (VAT제외)</span>
+                <span>예산 ${(p.budget_vat||0).toLocaleString()}원 (VAT포함)</span>
                 <span>PM ${p.pm_name||'-'}</span>
               </div>
               ${p.note?`<div style="font-size:12px;color:#888;margin-top:6px;padding:6px 8px;background:#f5f5f3;border-radius:6px">${p.note}</div>`:''}
@@ -503,7 +512,13 @@ function renderScheduleList(tab) {
   let evts = [...DB.events];
   if (tab === '예정') evts = evts.filter(e => evtDisplayStatus(e) === '예정');
   if (tab === '종료') evts = evts.filter(e => evtDisplayStatus(e) === '종료');
-  evts.sort((a,b) => new Date(a.date)-new Date(b.date));
+  if (tab === '전체') {
+    const upcoming = evts.filter(e => evtDisplayStatus(e) === '예정').sort((a,b) => new Date(a.date)-new Date(b.date));
+    const ended    = evts.filter(e => evtDisplayStatus(e) === '종료').sort((a,b) => new Date(a.date)-new Date(b.date));
+    evts = [...upcoming, ...ended];
+  } else {
+    evts.sort((a,b) => new Date(a.date)-new Date(b.date));
+  }
 
   document.getElementById('schedule-list').innerHTML = `
     <div class="card" style="padding:0;overflow:hidden">
@@ -618,6 +633,79 @@ function calSelectDate(ds) {
   renderCalendar();
 }
 
+// ── 대시보드 전용 미니 캘린더 ──
+let dbCalYear, dbCalMonth, dbCalSelected;
+function renderDashboardCal() {
+  const wrap = document.getElementById('db-cal-wrap');
+  if (!wrap) return;
+  const DB = window._DB;
+  const now = new Date();
+  if (dbCalYear  === undefined) dbCalYear  = now.getFullYear();
+  if (dbCalMonth === undefined) dbCalMonth = now.getMonth();
+  const firstDay    = new Date(dbCalYear, dbCalMonth, 1);
+  const daysInMonth = new Date(dbCalYear, dbCalMonth+1, 0).getDate();
+  const startDow    = firstDay.getDay();
+  const todayStr    = today();
+  const monthStr    = dbCalYear+"-"+String(dbCalMonth+1).padStart(2,"0");
+  const monthEvents = DB.events.filter(e => e.date && e.date.startsWith(monthStr));
+  const evtMap = {};
+  monthEvents.forEach(e => { if (!evtMap[e.date]) evtMap[e.date]=[]; evtMap[e.date].push(e); });
+  let cells = "";
+  const prevLast = new Date(dbCalYear, dbCalMonth, 0).getDate();
+  for (let i = startDow-1; i >= 0; i--)
+    cells += '<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc;font-size:10px">'+(prevLast-i)+"</span></div>";
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = dbCalYear+"-"+String(dbCalMonth+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
+    const isToday    = ds === todayStr;
+    const isSelected = ds === dbCalSelected;
+    const hasEvt     = evtMap[ds] && evtMap[ds].length > 0;
+    const bars = hasEvt ? evtMap[ds].slice(0,3).map(e =>
+      '<div style="height:3px;width:'+(evtMap[ds].length===1?"14px":"6px")+';border-radius:2px;background:'+(evtDisplayStatus(e)==="예정"?"#7F77DD":"#bbb")+'"></div>'
+    ).join("") : "";
+    cells += '<div class="cal-cell'+(isToday?' today':'')+(isSelected?' cal-selected':'')+'" data-ds="'+ds+'" onclick="dbCalSelect(this.dataset.ds)">';
+      +'<span class="cal-day" style="font-size:11px">'+d+"</span>"
+      +(hasEvt ? '<div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center;margin-top:2px">'+bars+"</div>" : "")
+      +"</div>";
+  }
+  const rem = (startDow+daysInMonth)%7;
+  for (let i = 1; i <= (rem?7-rem:0); i++)
+    cells += '<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc;font-size:10px">'+i+"</span></div>";
+  const label = new Date(dbCalYear, dbCalMonth).toLocaleDateString("ko-KR", {year:"numeric",month:"long"});
+  const sortedMonthEvts = [...monthEvents].sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const monthListHtml = sortedMonthEvts.length ? sortedMonthEvts.map(e => {
+    const isHl = e.date === dbCalSelected;
+    return '<div style="padding:6px 8px;border-bottom:0.5px solid #f0f0ee;cursor:pointer;border-radius:6px;background:'+(isHl?"#f0effe":"transparent")+'" onclick="openEventDetail('+e.id+')">'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<span style="font-size:11px;color:#888;flex-shrink:0">'+fmtDate(e.date)+"</span>"
+      +(evtDisplayStatus(e)==="예정"?ddayBadge(e.date):'<span class="dday dday-past">종료</span>')
+      +"</div>"
+      +'<div style="font-size:12px;font-weight:500;margin-top:2px;color:#1a1a1a">'+e.title+"</div>"
+      +"</div>";
+  }).join("") : '<div style="text-align:center;padding:1rem;font-size:12px;color:#aaa">이달 일정이 없어요</div>';
+  wrap.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
+    +'<button onclick="dbCalMove(-1)" style="padding:3px 8px;font-size:12px;border:0.5px solid #d0d0cc;border-radius:6px;background:transparent;cursor:pointer">◀</button>'
+    +'<span style="font-size:13px;font-weight:500">'+label+"</span>"
+    +'<button onclick="dbCalMove(1)" style="padding:3px 8px;font-size:12px;border:0.5px solid #d0d0cc;border-radius:6px;background:transparent;cursor:pointer">▶</button>'
+    +"</div>"
+    +'<div class="cal-grid" style="font-size:10px">'
+    +["일","월","화","수","목","금","토"].map(d=>'<div class="cal-dow" style="font-size:10px">'+d+"</div>").join("")
+    +cells+"</div>"
+    +'<div style="margin-top:.75rem;border-top:0.5px solid #f0f0ee;padding-top:.5rem">'
+    +'<div style="font-size:11px;font-weight:600;color:#7F77DD;letter-spacing:.04em;margin-bottom:4px">'+label+' 일정</div>'
+    +monthListHtml+"</div>";
+}
+function dbCalSelect(ds) {
+  dbCalSelected = ds;
+  renderDashboardCal();
+}
+function dbCalMove(dir) {
+  dbCalMonth += dir;
+  if (dbCalMonth > 11) { dbCalMonth=0; dbCalYear++; }
+  if (dbCalMonth < 0)  { dbCalMonth=11; dbCalYear--; }
+  renderDashboardCal();
+}
+
 function calMove(dir) {
   calMonth += dir;
   if (calMonth > 11) { calMonth=0; calYear++; }
@@ -652,7 +740,7 @@ function openEventDetail(id) {
     </div>` : '';
 
   document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal" style="width:620px">
+    <div class="modal" style="width:560px">
       <h3>${e.title}</h3>
       <div style="font-size:13px;color:#555;line-height:1.9">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
