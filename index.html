@@ -654,51 +654,41 @@ function renderDashboardCal() {
   const monthEvents = DB.events.filter(e => e.date && e.date.startsWith(monthStr));
   const evtMap = {};
   monthEvents.forEach(e => { if (!evtMap[e.date]) evtMap[e.date]=[]; evtMap[e.date].push(e); });
-  let cells = "";
+
+  let cells = '';
   const prevLast = new Date(dbCalYear, dbCalMonth, 0).getDate();
   for (let i = startDow-1; i >= 0; i--)
-    cells += '<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc;font-size:10px">'+(prevLast-i)+"</span></div>";
+    cells += '<div style="padding:4px;text-align:center;"><span style="font-size:11px;color:#ddd;">'+(prevLast-i)+'</span></div>';
+
   for (let d = 1; d <= daysInMonth; d++) {
     const ds = dbCalYear+"-"+String(dbCalMonth+1).padStart(2,"0")+"-"+String(d).padStart(2,"0");
     const isToday    = ds === todayStr;
     const isSelected = ds === dbCalSelected;
     const hasEvt     = evtMap[ds] && evtMap[ds].length > 0;
-    const bars = hasEvt ? evtMap[ds].slice(0,3).map(e =>
-      '<div style="height:3px;width:'+(evtMap[ds].length===1?"14px":"6px")+';border-radius:2px;background:'+(evtDisplayStatus(e)==="예정"?"#7F77DD":"#bbb")+'"></div>'
-    ).join("") : "";
-    cells += '<div class="cal-cell'+(isToday?' today':'')+(isSelected?' cal-selected':'')+'" data-ds="'+ds+'" onclick="dbCalSelect(this.dataset.ds)">';
-      +'<span class="cal-day" style="font-size:11px">'+d+"</span>"
-      +(hasEvt ? '<div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center;margin-top:2px">'+bars+"</div>" : "")
-      +"</div>";
+    const hasUpcoming = hasEvt && evtMap[ds].some(e => evtDisplayStatus(e)==='예정');
+    cells +=
+      '<div data-ds="'+ds+'" onclick="dbCalSelect(this.dataset.ds)" style="padding:4px;text-align:center;cursor:pointer;border-radius:6px;background:'+(isSelected?'#f0effe':isToday?'#ede9ff':'transparent')+';position:relative;">'
+      +'<span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:'+(isToday?'600':'400')+';background:'+(isToday?'#7F77DD':'transparent')+';color:'+(isToday?'#fff':'#333')+';">'+d+'</span>'
+      +(hasEvt ? '<div style="height:3px;border-radius:2px;background:'+(hasUpcoming?'#7F77DD':'#ccc')+';margin:1px 4px 0;"></div>' : '<div style="height:3px;margin:1px 4px 0;"></div>')
+      +'</div>';
   }
   const rem = (startDow+daysInMonth)%7;
   for (let i = 1; i <= (rem?7-rem:0); i++)
-    cells += '<div class="cal-cell other-month"><span class="cal-day" style="color:#ccc;font-size:10px">'+i+"</span></div>";
+    cells += '<div style="padding:4px;text-align:center;"><span style="font-size:11px;color:#ddd;">'+i+'</span></div>';
+
   const label = new Date(dbCalYear, dbCalMonth).toLocaleDateString("ko-KR", {year:"numeric",month:"long"});
-  const sortedMonthEvts = [...monthEvents].sort((a,b)=>new Date(a.date)-new Date(b.date));
-  const monthListHtml = sortedMonthEvts.length ? sortedMonthEvts.map(e => {
-    const isHl = e.date === dbCalSelected;
-    return '<div style="padding:6px 8px;border-bottom:0.5px solid #f0f0ee;cursor:pointer;border-radius:6px;background:'+(isHl?"#f0effe":"transparent")+'" onclick="openEventDetail('+e.id+')">'
-      +'<div style="display:flex;align-items:center;gap:6px">'
-      +'<span style="font-size:11px;color:#888;flex-shrink:0">'+fmtDate(e.date)+"</span>"
-      +(evtDisplayStatus(e)==="예정"?ddayBadge(e.date):'<span class="dday dday-past">종료</span>')
-      +"</div>"
-      +'<div style="font-size:12px;font-weight:500;margin-top:2px;color:#1a1a1a">'+e.title+"</div>"
-      +"</div>";
-  }).join("") : '<div style="text-align:center;padding:1rem;font-size:12px;color:#aaa">이달 일정이 없어요</div>';
   wrap.innerHTML =
-    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">'
-    +'<button onclick="dbCalMove(-1)" style="padding:3px 8px;font-size:12px;border:0.5px solid #d0d0cc;border-radius:6px;background:transparent;cursor:pointer">◀</button>'
-    +'<span style="font-size:13px;font-weight:500">'+label+"</span>"
-    +'<button onclick="dbCalMove(1)" style="padding:3px 8px;font-size:12px;border:0.5px solid #d0d0cc;border-radius:6px;background:transparent;cursor:pointer">▶</button>'
-    +"</div>"
-    +'<div class="cal-grid cal-mini" style="font-size:10px">'
-    +["일","월","화","수","목","금","토"].map(d=>'<div class="cal-dow" style="font-size:10px">'+d+"</div>").join("")
-    +cells+"</div>"
-    +'<div style="margin-top:.75rem;border-top:0.5px solid #f0f0ee;padding-top:.5rem">'
-    +'<div style="font-size:11px;font-weight:600;color:#7F77DD;letter-spacing:.04em;margin-bottom:4px">'+label+' 일정</div>'
-    +monthListHtml+"</div>";
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">'
+    +'<button onclick="dbCalMove(-1)" style="padding:3px 10px;font-size:12px;border:1px solid #d0d0cc;border-radius:6px;background:transparent;cursor:pointer;">◀</button>'
+    +'<span style="font-size:13px;font-weight:500;">'+label+'</span>'
+    +'<button onclick="dbCalMove(1)"  style="padding:3px 10px;font-size:12px;border:1px solid #d0d0cc;border-radius:6px;background:transparent;cursor:pointer;">▶</button>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;">'
+    +["일","월","화","수","목","금","토"].map(d=>'<div style="text-align:center;font-size:10px;color:#aaa;padding:2px 0;">'+d+'</div>').join("")
+    +cells
+    +'</div>';
 }
+
 function dbCalSelect(ds) {
   dbCalSelected = ds;
   renderDashboardCal();
