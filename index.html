@@ -405,7 +405,7 @@ const pages = {
           <h3>다가오는 일정 <span style="font-size:11px;color:#aaa;font-weight:400">30일 이내</span></h3>
           ${sorted.length ? sorted.map(e => {
             const proj = DB.projects.find(p => p.id === e.project_id);
-            return `<div class="event-row" style="cursor:pointer" onclick="showPage('schedule')">
+            return `<div class="event-row" data-eid="${e.id}" style="cursor:pointer;transition:background .15s" onclick="openEventDetail(${e.id})">
               <div class="event-dot ${dotClass(e.date, e.status)}"></div>
               <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -691,19 +691,6 @@ function renderDashboardCal() {
 
 function dbCalSelect(ds) {
   dbCalSelected = ds;
-  // 좌측 일정 목록 하이라이트
-  const DB = window._DB;
-  const evts = DB.events.filter(e => e.date === ds);
-  document.querySelectorAll('.event-row').forEach(el => {
-    el.style.background = '';
-  });
-  evts.forEach(e => {
-    const el = document.querySelector(`.event-row[data-eid="${e.id}"]`);
-    if (el) {
-      el.style.background = '#f0effe';
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-  });
   renderDashboardCal();
 }
 function dbCalMove(dir) {
