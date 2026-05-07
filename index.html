@@ -419,8 +419,8 @@ const pages = {
           }).join('') : '<div class="empty" style="padding:2rem">30일 이내 예정된 일정이 없어요</div>'}
         </div>
         <!-- 우측: 미니 캘린더 -->
-        <div style="flex:4;min-width:0">
-          <div class="card" style="padding:.75rem;margin-bottom:.75rem" id="db-cal-wrap">
+        <div style="flex:4;min-width:0;align-self:stretch;display:flex;flex-direction:column;">
+          <div class="card" style="padding:.75rem;flex:1;" id="db-cal-wrap">
           </div>
         </div>
       </div>
