@@ -573,15 +573,48 @@ const pages = {
 
   memos() {
     const DB = window._DB;
-    const memos = [...DB.memos].sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
-    document.getElementById('content').innerHTML = memos.length
-      ? `<div class="memo-grid">${memos.map(m=>`
-          <div class="memo-card" onclick="openViewMemo(${m.id})">
-            <div class="memo-title">${m.title||'제목 없음'}</div>
-            <div class="memo-preview">${(m.content||'').replace(/\n/g,' ')}</div>
-            <div class="memo-date">${fmtDate((m.updated_at||'').split('T')[0])}</div>
-          </div>`).join('')}</div>`
-      : '<div class="empty" style="margin-top:3rem">메모가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>';
+    const keyword = (window._memoSearch||'').trim().toLowerCase();
+    const all = [...DB.memos].sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
+    const memos = keyword
+      ? all.filter(m =>
+          (m.title||'').toLowerCase().includes(keyword) ||
+          (m.content||'').toLowerCase().includes(keyword))
+      : all;
+
+    function highlight(text) {
+      if (!keyword) return text;
+      const re = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+      return text.replace(re, s => `<mark style="background:#ede9ff;color:#534AB7;border-radius:2px;padding:0 2px">${s}</mark>`);
+    }
+
+    document.getElementById('content').innerHTML = `
+      <div style="margin-bottom:1rem;position:relative">
+        <input id="memo-search-input"
+          placeholder="제목 또는 내용으로 검색..."
+          value="${keyword.replace(/"/g,'&quot;')}"
+          oninput="window._memoSearch=this.value;pages.memos()"
+          style="width:100%;max-width:360px;padding:8px 36px 8px 12px;font-size:13px;border:1px solid #d0d0cc;border-radius:8px;outline:none;font-family:inherit"
+          onfocus="this.style.borderColor='#7F77DD';this.style.boxShadow='0 0 0 3px rgba(127,119,221,.1)'"
+          onblur="this.style.borderColor='#d0d0cc';this.style.boxShadow='none'"
+        />
+        ${keyword ? `<button onclick="window._memoSearch='';pages.memos()" style="position:absolute;top:50%;transform:translateY(-50%);left:328px;background:none;border:none;cursor:pointer;font-size:16px;color:#aaa;line-height:1">×</button>` : ''}
+        ${keyword ? `<span style="font-size:12px;color:#888;margin-left:10px">${memos.length}건 검색됨</span>` : ''}
+      </div>
+      ${memos.length
+        ? `<div class="memo-grid">${memos.map(m=>`
+            <div class="memo-card" onclick="openViewMemo(${m.id})">
+              <div class="memo-title">${highlight(m.title||'제목 없음')}</div>
+              <div class="memo-preview">${highlight((m.content||'').replace(/\n/g,' '))}</div>
+              <div class="memo-date">${fmtDate((m.updated_at||'').split('T')[0])}</div>
+            </div>`).join('')}</div>`
+        : `<div class="empty" style="margin-top:2rem">${keyword ? `"${keyword}" 검색 결과가 없어요` : '메모가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.'}</div>`
+      }`;
+
+    // 검색창 포커스 유지
+    if (keyword) {
+      const input = document.getElementById('memo-search-input');
+      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+    }
   }
 };
 
