@@ -592,7 +592,7 @@ const pages = {
         <input id="memo-search-input"
           placeholder="제목 또는 내용으로 검색..."
           value="${keyword.replace(/"/g,'&quot;')}"
-          oninput="window._memoSearch=this.value;pages.memos()"
+          oninput="if(!window._memoComposing){window._memoSearch=this.value;pages.memos()}" oncompositionstart="window._memoComposing=true" oncompositionend="window._memoComposing=false;window._memoSearch=this.value;pages.memos()"
           style="width:100%;max-width:360px;padding:8px 36px 8px 12px;font-size:13px;border:1px solid #d0d0cc;border-radius:8px;outline:none;font-family:inherit"
           onfocus="this.style.borderColor='#7F77DD';this.style.boxShadow='0 0 0 3px rgba(127,119,221,.1)'"
           onblur="this.style.borderColor='#d0d0cc';this.style.boxShadow='none'"
