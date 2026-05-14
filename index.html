@@ -573,50 +573,83 @@ const pages = {
 
   memos() {
     const DB = window._DB;
-    const keyword = (window._memoSearch||'').trim().toLowerCase();
-    const all = [...DB.memos].sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
-    const memos = keyword
-      ? all.filter(m =>
-          (m.title||'').toLowerCase().includes(keyword) ||
-          (m.content||'').toLowerCase().includes(keyword))
-      : all;
+    const contentEl = document.getElementById('content');
 
-    function highlight(text) {
-      if (!keyword) return text;
-      const re = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
-      return text.replace(re, s => `<mark style="background:#ede9ff;color:#534AB7;border-radius:2px;padding:0 2px">${s}</mark>`);
-    }
+    // 최초 렌더: 검색창 + 결과 영역 구조만 그리기
+    if (!document.getElementById('memo-search-input')) {
+      contentEl.innerHTML = `
+        <div style="margin-bottom:1rem;display:flex;align-items:center;gap:10px">
+          <div style="position:relative">
+            <input id="memo-search-input"
+              placeholder="제목 또는 내용으로 검색..."
+              style="width:300px;padding:8px 32px 8px 12px;font-size:13px;border:1px solid #d0d0cc;border-radius:8px;outline:none;font-family:inherit"
+              onfocus="this.style.borderColor='#7F77DD';this.style.boxShadow='0 0 0 3px rgba(127,119,221,.1)'"
+              onblur="this.style.borderColor='#d0d0cc';this.style.boxShadow='none'"
+            />
+            <button id="memo-clear-btn" onclick="memoSearchClear()" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:16px;color:#aaa;line-height:1;padding:0">×</button>
+          </div>
+          <span id="memo-search-count" style="font-size:12px;color:#888"></span>
+        </div>
+        <div id="memo-grid-wrap"></div>`;
 
-    document.getElementById('content').innerHTML = `
-      <div style="margin-bottom:1rem;position:relative">
-        <input id="memo-search-input"
-          placeholder="제목 또는 내용으로 검색..."
-          value="${keyword.replace(/"/g,'&quot;')}"
-          oninput="if(!window._memoComposing){window._memoSearch=this.value;pages.memos()}" oncompositionstart="window._memoComposing=true" oncompositionend="window._memoComposing=false;window._memoSearch=this.value;pages.memos()"
-          style="width:100%;max-width:360px;padding:8px 36px 8px 12px;font-size:13px;border:1px solid #d0d0cc;border-radius:8px;outline:none;font-family:inherit"
-          onfocus="this.style.borderColor='#7F77DD';this.style.boxShadow='0 0 0 3px rgba(127,119,221,.1)'"
-          onblur="this.style.borderColor='#d0d0cc';this.style.boxShadow='none'"
-        />
-        ${keyword ? `<button onclick="window._memoSearch='';pages.memos()" style="position:absolute;top:50%;transform:translateY(-50%);left:328px;background:none;border:none;cursor:pointer;font-size:16px;color:#aaa;line-height:1">×</button>` : ''}
-        ${keyword ? `<span style="font-size:12px;color:#888;margin-left:10px">${memos.length}건 검색됨</span>` : ''}
-      </div>
-      ${memos.length
-        ? `<div class="memo-grid">${memos.map(m=>`
-            <div class="memo-card" onclick="openViewMemo(${m.id})">
-              <div class="memo-title">${highlight(m.title||'제목 없음')}</div>
-              <div class="memo-preview">${highlight((m.content||'').replace(/\n/g,' '))}</div>
-              <div class="memo-date">${fmtDate((m.updated_at||'').split('T')[0])}</div>
-            </div>`).join('')}</div>`
-        : `<div class="empty" style="margin-top:2rem">${keyword ? `"${keyword}" 검색 결과가 없어요` : '메모가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.'}</div>`
-      }`;
-
-    // 검색창 포커스 유지
-    if (keyword) {
+      // 이벤트 따로 붙이기 (innerHTML 재렌더 없음)
       const input = document.getElementById('memo-search-input');
-      if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); }
+      input.addEventListener('input', memoSearchRender);
+      input.addEventListener('compositionend', memoSearchRender);
+      input.value = window._memoSearch || '';
     }
+
+    memoSearchRender();
   }
 };
+
+// ── 메모 검색 렌더 ──
+function memoSearchRender() {
+  const input = document.getElementById('memo-search-input');
+  const gridWrap = document.getElementById('memo-grid-wrap');
+  const countEl = document.getElementById('memo-search-count');
+  const clearBtn = document.getElementById('memo-clear-btn');
+  if (!input || !gridWrap) return;
+
+  const keyword = input.value.trim().toLowerCase();
+  window._memoSearch = input.value.trim();
+
+  if (clearBtn) clearBtn.style.display = keyword ? 'block' : 'none';
+
+  const DB = window._DB;
+  const all = [...DB.memos].sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
+  const memos = keyword
+    ? all.filter(m =>
+        (m.title||'').toLowerCase().includes(keyword) ||
+        (m.content||'').toLowerCase().includes(keyword))
+    : all;
+
+  function highlight(text) {
+    if (!keyword) return text;
+    const re = new RegExp(keyword.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+    return text.replace(re, s => '<mark style="background:#ede9ff;color:#534AB7;border-radius:2px;padding:0 2px">'+s+'</mark>');
+  }
+
+  if (countEl) countEl.textContent = keyword ? memos.length + '건 검색됨' : '';
+
+  gridWrap.innerHTML = memos.length
+    ? '<div class="memo-grid">' + memos.map(m =>
+        '<div class="memo-card" onclick="openViewMemo('+m.id+')">'
+        + '<div class="memo-title">'+highlight(m.title||'제목 없음')+'</div>'
+        + '<div class="memo-preview">'+highlight((m.content||'').replace(/\n/g,' '))+'</div>'
+        + '<div class="memo-date">'+fmtDate((m.updated_at||'').split('T')[0])+'</div>'
+        + '</div>').join('') + '</div>'
+    : '<div class="empty" style="margin-top:2rem">'
+      + (keyword ? '"'+keyword+'" 검색 결과가 없어요' : '메모가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.')
+      + '</div>';
+}
+
+function memoSearchClear() {
+  const input = document.getElementById('memo-search-input');
+  if (input) { input.value = ''; input.focus(); }
+  window._memoSearch = '';
+  memoSearchRender();
+}
 
 // ── 일정 상태 판단 (날짜 지나면 종료로 간주, DB는 건드리지 않음) ──
 function evtDisplayStatus(e) {
