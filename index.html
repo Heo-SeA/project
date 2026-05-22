@@ -177,6 +177,15 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
   .login-btn:disabled { background: #b0aae8; cursor: not-allowed; }
   .login-error { font-size: 12px; color: #a32d2d; background: #fcebeb; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: none; }
 .db-status { font-size: 11px; color: #999; background: #f0f0ee; padding: 4px 10px; border-radius: 4px; }
+  .img-drop-zone { border: 2px dashed #d0d0cc; border-radius: 8px; padding: 1rem; text-align: center; font-size: 12px; color: #aaa; cursor: pointer; transition: all .15s; margin-top: 8px; }
+  .img-drop-zone:hover, .img-drop-zone.dragover { border-color: #7F77DD; background: #f0effe; color: #7F77DD; }
+  .img-thumb-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .img-thumb { position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid #e8e8e6; cursor: pointer; }
+  .img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .img-thumb .del-img { position: absolute; top: 2px; right: 2px; background: rgba(0,0,0,.5); color: #fff; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 12px; cursor: pointer; line-height: 18px; text-align: center; padding: 0; }
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; z-index: 9999; cursor: pointer; }
+  .lightbox img { max-width: 90vw; max-height: 85vh; border-radius: 8px; object-fit: contain; }
+  .lightbox-btn { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; }
 
 @media (max-width: 640px) {
   .sidebar { display: none; }
@@ -401,7 +410,14 @@ window._DB = window._DB || { projects: [], events: [], memos: [] };
 
 // ── 유틸 ──
 function today() { return new Date().toISOString().split('T')[0]; }
-function dday(d)  { return Math.ceil((new Date(d) - new Date(today())) / 864e5); }
+function dday(d) {
+  // 시간대 오차 방지: 날짜 문자열을 로컬 시간 기준으로 파싱
+  const [y,mo,da] = d.split('-').map(Number);
+  const target = new Date(y, mo-1, da);
+  const [ty,tm,td] = today().split('-').map(Number);
+  const base = new Date(ty, tm-1, td);
+  return Math.ceil((target - base) / 864e5);
+}
 function fmtDate(d) { if (!d) return ''; const p = d.split('-'); return `${p[0]}. ${p[1]}. ${p[2]}`; }
 
 function ddayBadge(ds) {
@@ -637,6 +653,7 @@ function memoSearchRender() {
         '<div class="memo-card" onclick="openViewMemo('+m.id+')">'
         + '<div class="memo-title">'+highlight(m.title||'제목 없음')+'</div>'
         + '<div class="memo-preview">'+highlight((m.content||'').replace(/\n/g,' '))+'</div>'
+        + (m.images && JSON.parse(m.images).length ? '<div style="margin-top:8px;display:flex;gap:4px">'+ JSON.parse(m.images).slice(0,3).map(url=>'<img src="'+url+'" style="width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e6"/>').join('') +'</div>' : '')
         + '<div class="memo-date">'+fmtDate((m.updated_at||'').split('T')[0])+'</div>'
         + '</div>').join('') + '</div>'
     : '<div class="empty" style="margin-top:2rem">'
@@ -1402,13 +1419,22 @@ async function deleteEvent(id) {
 function openViewMemo(id) {
   const m = window._DB.memos.find(x => x.id===id);
   if (!m) return;
+  const imgs = m.images ? JSON.parse(m.images) : [];
+  const imgHtml = imgs.length ? `
+    <div class="img-thumb-wrap" style="margin-top:12px">
+      ${imgs.map((url,i) => `
+        <div class="img-thumb" onclick="openLightbox('${url}','${m.title||'이미지'}',${i})">
+          <img src="${url}" alt="첨부 이미지"/>
+        </div>`).join('')}
+    </div>` : '';
   document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal" style="width:480px">
+    <div class="modal" style="width:520px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
         <h3 style="margin:0">${m.title||'제목 없음'}</h3>
         <span style="font-size:11px;color:#bbb">${fmtDate((m.updated_at||'').split('T')[0])}</span>
       </div>
       <div style="font-size:13px;line-height:1.8;white-space:pre-wrap;background:#f5f5f3;padding:1rem;border-radius:8px;min-height:100px">${m.content||''}</div>
+      ${imgHtml}
       <div class="modal-footer">
         <button class="btn btn-danger" onclick="deleteMemo(${id})">삭제</button>
         <button class="btn" onclick="closeModalForce()">닫기</button>
@@ -1420,35 +1446,126 @@ function openViewMemo(id) {
 
 function openEditMemo(id) {
   const m = id ? window._DB.memos.find(x => x.id===id) : null;
+  window._memoImgs = m && m.images ? JSON.parse(m.images) : [];
+
   document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal" style="width:480px">
+    <div class="modal" style="width:520px">
       <h3>${m?'메모 수정':'새 메모'}</h3>
       <div class="form-group"><label>제목</label><input id="m-title" value="${m?m.title:''}"/></div>
       <div class="form-group"><label>내용</label><textarea id="m-content" style="min-height:160px">${m?m.content:''}</textarea></div>
+      <div class="form-group">
+        <label>이미지 첨부</label>
+        <div class="img-drop-zone" id="img-drop-zone" onclick="document.getElementById('img-file-input').click()">
+          클릭하거나 이미지를 드래그 앤 드롭 · Ctrl+V 붙여넣기
+        </div>
+        <input type="file" id="img-file-input" accept="image/*" multiple style="display:none" onchange="handleImgFiles(this.files)"/>
+        <div class="img-thumb-wrap" id="img-preview"></div>
+      </div>
       <div class="modal-footer">
+        <span id="img-upload-status" style="font-size:12px;color:#888"></span>
         <button class="btn" onclick="closeModalForce()">취소</button>
-        <button class="btn btn-primary" onclick="saveMemo(${id||'null'})">${m?'저장':'추가'}</button>
+        <button class="btn btn-primary" id="memo-save-btn" onclick="saveMemo(${id||'null'})">${m?'저장':'추가'}</button>
       </div>
     </div>
   </div>`;
-  setTimeout(() => document.getElementById('m-content').focus(), 50);
+
+  setTimeout(() => {
+    document.getElementById('m-content').focus();
+    renderImgPreview();
+    setupImgDropZone();
+  }, 50);
+}
+
+function renderImgPreview() {
+  const wrap = document.getElementById('img-preview');
+  if (!wrap) return;
+  wrap.innerHTML = window._memoImgs.map((url, i) =>
+    `<div class="img-thumb">
+      <img src="${url}" alt="첨부 이미지"/>
+      <button class="del-img" onclick="removeImg(${i})">×</button>
+    </div>`
+  ).join('');
+}
+
+function removeImg(i) {
+  window._memoImgs.splice(i, 1);
+  renderImgPreview();
+}
+
+function setupImgDropZone() {
+  const zone = document.getElementById('img-drop-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); handleImgFiles(e.dataTransfer.files); });
+  // Ctrl+V 붙여넣기
+  document.addEventListener('paste', function onPaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const imgItems = [...items].filter(i => i.type.startsWith('image/'));
+    if (imgItems.length) { handleImgFiles(imgItems.map(i => i.getAsFile())); }
+    document.removeEventListener('paste', onPaste);
+  });
+}
+
+async function handleImgFiles(files) {
+  const status = document.getElementById('img-upload-status');
+  if (status) status.textContent = '업로드 중...';
+  for (const file of files) {
+    if (!file || !file.type.startsWith('image/')) continue;
+    try {
+      const ext = file.name.split('.').pop() || 'png';
+      const path = `memo-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { data, error } = await window._sb.storage.from('memo-images').upload(path, file, { contentType: file.type });
+      if (error) throw error;
+      const { data: urlData } = window._sb.storage.from('memo-images').getPublicUrl(path);
+      window._memoImgs.push(urlData.publicUrl);
+      renderImgPreview();
+    } catch(e) {
+      alert('이미지 업로드 실패: ' + e.message);
+    }
+  }
+  if (status) status.textContent = '';
 }
 
 async function saveMemo(id) {
   const content = document.getElementById('m-content').value.trim();
   if (!content) return alert('내용을 입력해주세요');
+  const btn = document.getElementById('memo-save-btn');
+  if (btn) btn.disabled = true;
   const now = new Date().toISOString();
   const data = {
     id: id || undefined,
     title:      document.getElementById('m-title').value.trim(),
     content,
+    images:     JSON.stringify(window._memoImgs || []),
     updated_at: now,
     created_at: id ? undefined : now
   };
-  if (!id) delete data.created_at; // insert 시 DB 기본값 사용
+  if (!id) delete data.created_at;
   if (window._sbSaveMemo) await window._sbSaveMemo(data);
   if (window._sbReload) await window._sbReload();
+  window._memoImgs = [];
   closeModalForce(); showPage('memos');
+}
+
+function openLightbox(url, title, idx) {
+  const lb = document.createElement('div');
+  lb.className = 'lightbox';
+  lb.innerHTML = `
+    <img src="${url}" alt="${title}"/>
+    <div class="lightbox-btn">
+      <a href="${url}" download="${title}_${idx+1}.jpg" onclick="event.stopPropagation()"
+        style="padding:8px 18px;background:#fff;border-radius:8px;font-size:13px;color:#1a1a1a;text-decoration:none;font-weight:500">
+        ⬇ 다운로드
+      </a>
+      <button onclick="this.closest('.lightbox').remove()"
+        style="padding:8px 18px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:8px;font-size:13px;color:#fff;cursor:pointer">
+        닫기
+      </button>
+    </div>`;
+  lb.addEventListener('click', e => { if (e.target === lb) lb.remove(); });
+  document.body.appendChild(lb);
 }
 
 async function deleteMemo(id) {
