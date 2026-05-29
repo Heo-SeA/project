@@ -1881,20 +1881,31 @@ function clEditToggle(i) {
 }
 
 async function updateChecklist(id) {
-  const projId  = parseInt(document.getElementById('cl-edit-proj').value) || null;
-  const manager = document.getElementById('cl-edit-manager').value.trim();
-  const type    = document.querySelector('input[name="cl-edit-type"]:checked')?.value || '월간';
-  const ys      = parseInt(document.getElementById('cl-edit-ys').value);
-  const ye      = parseInt(document.getElementById('cl-edit-ye').value);
-  const cc      = parseInt(document.getElementById('cl-edit-cc')?.value) || 6;
-  const items   = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
-  const itemsJson = JSON.stringify(items);
-  const cl = window._DB.checklists.find(c => c.id === id);
-  if (cl) { cl.project_id=projId; cl.manager=manager; cl.type=type; cl.year_start=Math.min(ys,ye); cl.year_end=Math.max(ys,ye); cl.items=itemsJson; }
+  const projId   = parseInt(document.getElementById('cl-edit-proj').value) || null;
+  const manager  = document.getElementById('cl-edit-manager').value.trim();
   const delivery = document.querySelector('input[name="cl-edit-delivery"]:checked')?.value || '';
-  if (cl) { cl.delivery = delivery; }
+  const type     = document.querySelector('input[name="cl-edit-type"]:checked')?.value || '월간';
+  const ys       = parseInt(document.getElementById('cl-edit-ys').value);
+  const ye       = parseInt(document.getElementById('cl-edit-ye').value);
+  const cc       = parseInt(document.getElementById('cl-edit-cc')?.value) || 6;
+
+  const cl = window._DB.checklists.find(c => c.id === id);
+  if (!cl) return;
+
+  // 유형 또는 기간이 바뀐 경우에만 항목 새로 생성, 아니면 기존 항목 유지
+  const typeChanged = cl.type !== type
+    || cl.year_start !== Math.min(ys,ye)
+    || cl.year_end   !== Math.max(ys,ye);
+  const itemsJson = typeChanged
+    ? JSON.stringify(generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc))
+    : (typeof cl.items === 'string' ? cl.items : JSON.stringify(cl.items));
+
+  cl.project_id = projId; cl.manager = manager; cl.delivery = delivery;
+  cl.type = type; cl.year_start = Math.min(ys,ye); cl.year_end = Math.max(ys,ye);
+  cl.items = itemsJson;
+
   const { error } = await window._sb.from('checklists').update({
-    project_id: projId, manager, type, delivery,
+    project_id: projId, manager, delivery, type,
     year_start: Math.min(ys,ye), year_end: Math.max(ys,ye), items: itemsJson
   }).eq('id', id);
   if (error) return alert('저장 실패: ' + error.message);
