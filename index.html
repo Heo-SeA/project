@@ -236,7 +236,7 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
     <div class="nav-item" onclick="showPage('projects')">사업 목록</div>
     <div class="nav-item" onclick="showPage('schedule')">일정 관리</div>
     <div class="nav-item" onclick="showPage('memos')">메모장</div>
-    <div class="nav-item" onclick="showPage('checklists')">체크리스트</div>
+    <div class="nav-item" onclick="showPage('checklists')">유지보수 보고서</div>
   </div>
 
   <div class="main">
@@ -473,7 +473,7 @@ function closeModal(e) { if (e.target === e.currentTarget) document.getElementBy
 function closeModalForce() { document.getElementById('modal-container').innerHTML = ''; }
 
 // ── 네비게이션 ──
-const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장', checklists:'체크리스트' };
+const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장', checklists:'유지보수 결과보고서' };
 
 function setNav(p) {
   document.querySelectorAll('.nav-item').forEach(el => {
