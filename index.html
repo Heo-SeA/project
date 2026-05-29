@@ -1614,9 +1614,8 @@ async function deleteMemo(id) {
 // ── 체크리스트 헬퍼 ──
 function clAutoName(cl, proj) {
   const name = proj ? proj.name : '사업 없음';
-  const short = name.length > 20 ? name.slice(0,20)+'...' : name;
   const period = cl.year_start === cl.year_end ? cl.year_start : cl.year_start+'~'+cl.year_end;
-  return short + ' · ' + cl.type + ' · ' + period;
+  return name + ' · ' + cl.type + ' · ' + period;
 }
 
 function generateClItems(type, ys, ye, cc) {
@@ -1651,6 +1650,7 @@ function renderClCard(cl, tab) {
     + '<div style="font-size:11px;color:#888;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">'
     + (proj ? '<span>'+proj.name+'</span>' : '')
     + (cl.manager ? '<span style="color:#7F77DD">담당: '+cl.manager+'</span>' : '')
+    + (cl.delivery ? '<span style="color:#888">송부: '+cl.delivery+'</span>' : '')
     + '</div></div>'
     + '<span style="font-size:12px;color:#888;white-space:nowrap;flex-shrink:0;margin-top:2px">'+checked+'/'+total+'</span>'
     + '</div>'
@@ -1719,6 +1719,14 @@ function openAddChecklist() {
     + '</select></div>'
     + '<div class="form-group"><label>담당자</label>'
     + '<input id="cl-manager" placeholder="이름 입력"/></div>'
+    + '<div class="form-group"><label>송부 방법</label>'
+    + '<div style="display:flex;gap:16px;margin-top:4px">'
+    + ['PMS 업로드','메일 발송'].map(t =>
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">'
+        + '<input type="radio" name="cl-edit-delivery" value="'+t+'" '+(cl.delivery===t?'checked':t==='PMS 업로드'&&!cl.delivery?'checked':'')+' style="width:auto"/> '+t
+        + '</label>'
+      ).join('')
+    + '</div></div>'
     + '<div class="form-group"><label>유형</label>'
     + '<div style="display:flex;gap:16px;margin-top:4px">'
     + ['월간','분기별','자유입력'].map(t =>
@@ -1733,6 +1741,14 @@ function openAddChecklist() {
     + '</div>'
     + '<div class="form-group" id="cl-custom-wrap" style="display:none"><label>항목 개수</label>'
     + '<input type="number" id="cl-cc" value="6" min="1" max="50" oninput="clPreview()"/></div>'
+    + '<div class="form-group"><label>송부 방법</label>'
+    + '<div style="display:flex;gap:16px;margin-top:4px">'
+    + ['PMS 업로드','메일 발송'].map(t =>
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">'
+        + '<input type="radio" name="cl-delivery" value="'+t+'" '+(t==='PMS 업로드'?'checked':'')+' style="width:auto"/> '+t
+        + '</label>'
+      ).join('')
+    + '</div></div>'
     + '<div class="form-group"><label>미리보기</label>'
     + '<div id="cl-preview" style="display:flex;flex-wrap:wrap;gap:5px;background:#f9f9f7;padding:.75rem;border-radius:8px;border:1px solid #ebebea;min-height:44px;max-height:110px;overflow-y:auto"></div>'
     + '<div id="cl-count" style="font-size:11px;color:#888;margin-top:4px"></div></div>'
@@ -1771,9 +1787,10 @@ async function saveChecklist() {
   const cc = parseInt(document.getElementById('cl-cc')?.value) || 6;
   const projId = parseInt(document.getElementById('cl-proj').value) || null;
   const items = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
-  const manager = document.getElementById('cl-manager')?.value.trim() || '';
+  const manager  = document.getElementById('cl-manager')?.value.trim() || '';
+  const delivery = document.querySelector('input[name="cl-delivery"]:checked')?.value || '';
   const { error } = await window._sb.from('checklists').insert([{
-    project_id: projId, type, manager,
+    project_id: projId, type, manager, delivery,
     year_start: Math.min(ys,ye), year_end: Math.max(ys,ye),
     items: JSON.stringify(items), status: '진행중'
   }]);
@@ -1802,6 +1819,14 @@ function openEditChecklist(id) {
     + '</select></div>'
     + '<div class="form-group"><label>담당자</label>'
     + '<input id="cl-edit-manager" value="'+(cl.manager||'')+'" placeholder="이름 입력"/></div>'
+    + '<div class="form-group"><label>송부 방법</label>'
+    + '<div style="display:flex;gap:16px;margin-top:4px">'
+    + ['PMS 업로드','메일 발송'].map(t =>
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">'
+        + '<input type="radio" name="cl-edit-delivery" value="'+t+'" '+(cl.delivery===t?'checked':t==='PMS 업로드'&&!cl.delivery?'checked':'')+' style="width:auto"/> '+t
+        + '</label>'
+      ).join('')
+    + '</div></div>'
     + '<div class="form-group"><label>유형</label>'
     + '<div style="display:flex;gap:16px;margin-top:4px">'
     + ['월간','분기별','자유입력'].map(t =>
@@ -1866,8 +1891,10 @@ async function updateChecklist(id) {
   const itemsJson = JSON.stringify(items);
   const cl = window._DB.checklists.find(c => c.id === id);
   if (cl) { cl.project_id=projId; cl.manager=manager; cl.type=type; cl.year_start=Math.min(ys,ye); cl.year_end=Math.max(ys,ye); cl.items=itemsJson; }
+  const delivery = document.querySelector('input[name="cl-edit-delivery"]:checked')?.value || '';
+  if (cl) { cl.delivery = delivery; }
   const { error } = await window._sb.from('checklists').update({
-    project_id: projId, manager, type,
+    project_id: projId, manager, type, delivery,
     year_start: Math.min(ys,ye), year_end: Math.max(ys,ye), items: itemsJson
   }).eq('id', id);
   if (error) return alert('저장 실패: ' + error.message);
