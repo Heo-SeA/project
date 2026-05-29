@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>사업 관리</title>
-<link href="favicon.ico" rel="icon">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 14px; }
@@ -1645,10 +1644,14 @@ function renderClCard(cl, tab) {
   const pct = total ? Math.round(checked/total*100) : 0;
   const isDone = checked === total && total > 0;
   return '<div class="cl-card">'
-    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
-    + '<div style="flex:1"><div style="font-size:14px;font-weight:500">'+clAutoName(cl,proj)+'</div>'
-    + '<div style="font-size:11px;color:#888;margin-top:2px">'+(proj?proj.name:'')+'</div></div>'
-    + '<span style="font-size:12px;color:#888;white-space:nowrap">'+checked+'/'+total+'</span>'
+    + '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">'
+    + '<div style="flex:1;min-width:0">'
+    + '<div style="font-size:14px;font-weight:500;word-break:break-word;white-space:normal">'+clAutoName(cl,proj)+'</div>'
+    + '<div style="font-size:11px;color:#888;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">'
+    + (proj ? '<span>'+proj.name+'</span>' : '')
+    + (cl.manager ? '<span style="color:#7F77DD">담당: '+cl.manager+'</span>' : '')
+    + '</div></div>'
+    + '<span style="font-size:12px;color:#888;white-space:nowrap;flex-shrink:0;margin-top:2px">'+checked+'/'+total+'</span>'
     + '</div>'
     + '<div class="cl-prog-bar"><div class="cl-prog-fill'+(isDone?' done':'')+'" style="width:'+pct+'%"></div></div>'
     + '<div class="cl-items">'
@@ -1660,6 +1663,7 @@ function renderClCard(cl, tab) {
     + '</div>'
     + '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #f0f0ee">'
     + '<button class="btn btn-sm" onclick="deleteChecklist('+cl.id+')">삭제</button>'
+    + '<button class="btn btn-sm" onclick="openEditChecklist('+cl.id+')">수정</button>'
     + (tab==='진행중'
         ? '<button class="btn btn-sm btn-primary" onclick="completeChecklist('+cl.id+')">완료로 보내기</button>'
         : '<button class="btn btn-sm" onclick="restoreChecklist('+cl.id+')">되돌리기</button>')
@@ -1712,6 +1716,8 @@ function openAddChecklist() {
     + '<select id="cl-proj"><option value="">없음</option>'
     + DB.projects.map(p => '<option value="'+p.id+'">'+p.name+'</option>').join('')
     + '</select></div>'
+    + '<div class="form-group"><label>담당자</label>'
+    + '<input id="cl-manager" placeholder="이름 입력"/></div>'
     + '<div class="form-group"><label>유형</label>'
     + '<div style="display:flex;gap:16px;margin-top:4px">'
     + ['월간','분기별','자유입력'].map(t =>
@@ -1764,8 +1770,9 @@ async function saveChecklist() {
   const cc = parseInt(document.getElementById('cl-cc')?.value) || 6;
   const projId = parseInt(document.getElementById('cl-proj').value) || null;
   const items = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
+  const manager = document.getElementById('cl-manager')?.value.trim() || '';
   const { error } = await window._sb.from('checklists').insert([{
-    project_id: projId, type,
+    project_id: projId, type, manager,
     year_start: Math.min(ys,ye), year_end: Math.max(ys,ye),
     items: JSON.stringify(items), status: '진행중'
   }]);
@@ -1773,6 +1780,40 @@ async function saveChecklist() {
   if (window._sbReload) await window._sbReload();
   closeModalForce();
   showPage('checklists');
+}
+
+function openEditChecklist(id) {
+  const DB = window._DB;
+  const cl = DB.checklists.find(c => c.id === id);
+  if (!cl) return;
+  document.getElementById('modal-container').innerHTML = '<div class="modal-overlay" onclick="closeModal(event)">'
+    + '<div class="modal" style="width:480px">'
+    + '<h3>체크리스트 수정</h3>'
+    + '<div class="form-group"><label>연결 사업</label>'
+    + '<select id="cl-edit-proj"><option value="">없음</option>'
+    + DB.projects.map(p => '<option value="'+p.id+'" '+(p.id===cl.project_id?'selected':'')+'>'+p.name+'</option>').join('')
+    + '</select></div>'
+    + '<div class="form-group"><label>담당자</label>'
+    + '<input id="cl-edit-manager" value="'+(cl.manager||'')+'" placeholder="이름 입력"/></div>'
+    + '<div class="form-group"><label style="margin-bottom:6px">현재 항목 상태</label>'
+    + '<div style="font-size:12px;color:#888;background:#f9f9f7;padding:.75rem;border-radius:8px;border:1px solid #ebebea">'
+    + '체크 항목은 유지됩니다. 유형/기간 변경은 삭제 후 새로 추가해주세요.'
+    + '</div></div>'
+    + '<div class="modal-footer">'
+    + '<button class="btn" onclick="closeModalForce()">취소</button>'
+    + '<button class="btn btn-primary" onclick="updateChecklist('+id+')">저장</button>'
+    + '</div></div></div>';
+}
+
+async function updateChecklist(id) {
+  const projId  = parseInt(document.getElementById('cl-edit-proj').value) || null;
+  const manager = document.getElementById('cl-edit-manager').value.trim();
+  const cl = window._DB.checklists.find(c => c.id === id);
+  if (cl) { cl.project_id = projId; cl.manager = manager; }
+  const { error } = await window._sb.from('checklists').update({ project_id: projId, manager }).eq('id', id);
+  if (error) return alert('저장 실패: ' + error.message);
+  closeModalForce();
+  pages.checklists();
 }
 
 // ── 초기화 ──
