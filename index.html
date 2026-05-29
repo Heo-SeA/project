@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>사업 관리</title>
-<link href="favicon.ico" rel="icon">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a1a; font-size: 14px; }
@@ -1647,7 +1646,7 @@ function renderClCard(cl, tab) {
   return '<div class="cl-card">'
     + '<div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:4px">'
     + '<div style="flex:1;min-width:0">'
-    + '<div style="font-size:14px;font-weight:500;word-break:break-word;white-space:normal">'+clAutoName(cl,proj)+'</div>'
+    + '<div style="font-size:14px;font-weight:500;word-break:break-word;white-space:normal;overflow:visible;text-overflow:unset">'+clAutoName(cl,proj)+'</div>'
     + '<div style="font-size:11px;color:#888;margin-top:3px;display:flex;gap:10px;flex-wrap:wrap">'
     + (proj ? '<span>'+proj.name+'</span>' : '')
     + (cl.manager ? '<span style="color:#7F77DD">담당: '+cl.manager+'</span>' : '')
@@ -1787,34 +1786,64 @@ function openEditChecklist(id) {
   const DB = window._DB;
   const cl = DB.checklists.find(c => c.id === id);
   if (!cl) return;
-  const items = cl.items ? (typeof cl.items === 'string' ? JSON.parse(cl.items) : cl.items) : [];
-  window.clEditItems = JSON.parse(JSON.stringify(items));
-  const proj = DB.projects.find(p => p.id === cl.project_id);
+  window.clEditId = id;
+  const thisYear = new Date().getFullYear();
+  const years = [];
+  for (let y = thisYear-2; y <= thisYear+3; y++) years.push(y);
+  const yearOpts = (sel) => years.map(y => '<option value="'+y+'" '+(y===sel?'selected':'')+'>'+y+'년</option>').join('');
 
   document.getElementById('modal-container').innerHTML = '<div class="modal-overlay" onclick="closeModal(event)">'
     + '<div class="modal" style="width:520px">'
     + '<h3>체크리스트 수정</h3>'
-    + '<div style="font-size:13px;color:#888;background:#f9f9f7;padding:8px 12px;border-radius:8px;margin-bottom:1rem;border:1px solid #ebebea">'
-    + (proj ? proj.name : '') + ' · ' + cl.type + ' · ' + (cl.year_start === cl.year_end ? cl.year_start : cl.year_start+'~'+cl.year_end)
-    + '</div>'
     + '<div class="form-group"><label>연결 사업</label>'
     + '<select id="cl-edit-proj"><option value="">없음</option>'
     + DB.projects.map(p => '<option value="'+p.id+'" '+(p.id===cl.project_id?'selected':'')+'>'+p.name+'</option>').join('')
     + '</select></div>'
     + '<div class="form-group"><label>담당자</label>'
     + '<input id="cl-edit-manager" value="'+(cl.manager||'')+'" placeholder="이름 입력"/></div>'
-    + '<div class="form-group"><label>항목 체크 상태 <span style="font-size:11px;color:#aaa;font-weight:400">(클릭하여 체크/해제)</span></label>'
-    + '<div style="display:flex;flex-wrap:wrap;gap:6px;background:#f9f9f7;padding:.75rem;border-radius:8px;border:1px solid #ebebea;max-height:180px;overflow-y:auto">'
-    + window.clEditItems.map((item,i) =>
-        '<div class="cl-item'+(item.checked?' checked':'')+'" id="cl-edit-item-'+i+'" onclick="clEditToggle('+i+')" style="cursor:pointer">'
-        + '<span style="font-size:10px">'+(item.checked?'✓':'○')+'</span> '+item.label
-        + '</div>'
+    + '<div class="form-group"><label>유형</label>'
+    + '<div style="display:flex;gap:16px;margin-top:4px">'
+    + ['월간','분기별','자유입력'].map(t =>
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">'
+        + '<input type="radio" name="cl-edit-type" value="'+t+'" '+(cl.type===t?'checked':'')+' onchange="clEditTypeChange()" style="width:auto"/> '+t
+        + '</label>'
       ).join('')
     + '</div></div>'
+    + '<div class="form-row">'
+    + '<div class="form-group"><label>시작 연도</label><select id="cl-edit-ys" onchange="clEditPreview()">'+yearOpts(cl.year_start)+'</select></div>'
+    + '<div class="form-group"><label>종료 연도</label><select id="cl-edit-ye" onchange="clEditPreview()">'+yearOpts(cl.year_end)+'</select></div>'
+    + '</div>'
+    + '<div class="form-group" id="cl-edit-custom-wrap" style="display:'+(cl.type==='자유입력'?'block':'none')+'">'
+    + '<label>항목 개수</label><input type="number" id="cl-edit-cc" value="'+(cl.items?(typeof cl.items==='string'?JSON.parse(cl.items):cl.items).length:6)+'" min="1" max="50" oninput="clEditPreview()"/></div>'
+    + '<div class="form-group"><label>미리보기 <span style="font-size:11px;color:#aaa;font-weight:400">유형/기간 변경 시 체크가 초기화돼요</span></label>'
+    + '<div id="cl-edit-preview" style="display:flex;flex-wrap:wrap;gap:5px;background:#f9f9f7;padding:.75rem;border-radius:8px;border:1px solid #ebebea;min-height:44px;max-height:110px;overflow-y:auto"></div>'
+    + '<div id="cl-edit-count" style="font-size:11px;color:#888;margin-top:4px"></div></div>'
     + '<div class="modal-footer">'
     + '<button class="btn" onclick="closeModalForce()">취소</button>'
     + '<button class="btn btn-primary" onclick="updateChecklist('+id+')">저장</button>'
     + '</div></div></div>';
+  clEditPreview();
+}
+
+function clEditTypeChange() {
+  const type = document.querySelector('input[name="cl-edit-type"]:checked')?.value;
+  document.getElementById('cl-edit-custom-wrap').style.display = type === '자유입력' ? 'block' : 'none';
+  clEditPreview();
+}
+
+function clEditPreview() {
+  const type = document.querySelector('input[name="cl-edit-type"]:checked')?.value || '월간';
+  const ys = parseInt(document.getElementById('cl-edit-ys')?.value) || new Date().getFullYear();
+  const ye = parseInt(document.getElementById('cl-edit-ye')?.value) || ys;
+  const cc = parseInt(document.getElementById('cl-edit-cc')?.value) || 6;
+  const items = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
+  const wrap = document.getElementById('cl-edit-preview');
+  const cnt  = document.getElementById('cl-edit-count');
+  if (!wrap) return;
+  wrap.innerHTML = items.map(i =>
+    '<span style="padding:2px 8px;border:1px solid #e8e8e6;border-radius:999px;font-size:11px;color:#555">'+i.label+'</span>'
+  ).join('');
+  if (cnt) cnt.textContent = '총 '+items.length+'개 항목';
 }
 
 function clEditToggle(i) {
@@ -1828,10 +1857,18 @@ function clEditToggle(i) {
 async function updateChecklist(id) {
   const projId  = parseInt(document.getElementById('cl-edit-proj').value) || null;
   const manager = document.getElementById('cl-edit-manager').value.trim();
-  const itemsJson = JSON.stringify(window.clEditItems || []);
+  const type    = document.querySelector('input[name="cl-edit-type"]:checked')?.value || '월간';
+  const ys      = parseInt(document.getElementById('cl-edit-ys').value);
+  const ye      = parseInt(document.getElementById('cl-edit-ye').value);
+  const cc      = parseInt(document.getElementById('cl-edit-cc')?.value) || 6;
+  const items   = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
+  const itemsJson = JSON.stringify(items);
   const cl = window._DB.checklists.find(c => c.id === id);
-  if (cl) { cl.project_id = projId; cl.manager = manager; cl.items = itemsJson; }
-  const { error } = await window._sb.from('checklists').update({ project_id: projId, manager, items: itemsJson }).eq('id', id);
+  if (cl) { cl.project_id=projId; cl.manager=manager; cl.type=type; cl.year_start=Math.min(ys,ye); cl.year_end=Math.max(ys,ye); cl.items=itemsJson; }
+  const { error } = await window._sb.from('checklists').update({
+    project_id: projId, manager, type,
+    year_start: Math.min(ys,ye), year_end: Math.max(ys,ye), items: itemsJson
+  }).eq('id', id);
   if (error) return alert('저장 실패: ' + error.message);
   closeModalForce();
   pages.checklists();
