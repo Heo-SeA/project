@@ -177,6 +177,16 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
   .login-btn:disabled { background: #b0aae8; cursor: not-allowed; }
   .login-error { font-size: 12px; color: #a32d2d; background: #fcebeb; border-radius: 8px; padding: 8px 12px; margin-top: 10px; display: none; }
 .db-status { font-size: 11px; color: #999; background: #f0f0ee; padding: 4px 10px; border-radius: 4px; }
+  .cl-card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: .75rem; transition: border-color .12s; }
+  .cl-card:hover { border-color: #b0aae8; }
+  .cl-prog-bar { height: 4px; background: #f0f0ee; border-radius: 2px; margin: .5rem 0 .75rem; overflow: hidden; }
+  .cl-prog-fill { height: 100%; background: #7F77DD; border-radius: 2px; transition: width .3s; }
+  .cl-prog-fill.done { background: #1D9E75; }
+  .cl-items { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cl-item { display: flex; align-items: center; gap: 5px; padding: 4px 10px; border: 1px solid #e8e8e6; border-radius: 999px; font-size: 12px; cursor: pointer; transition: all .12s; user-select: none; color: #555; }
+  .cl-item:hover { border-color: #7F77DD; background: #f0effe; color: #534AB7; }
+  .cl-item.checked { background: #7F77DD; color: #fff; border-color: #7F77DD; }
+  .cl-item.checked:hover { background: #534AB7; border-color: #534AB7; }
   .img-drop-zone { border: 2px dashed #d0d0cc; border-radius: 8px; padding: 1rem; text-align: center; font-size: 12px; color: #aaa; cursor: pointer; transition: all .15s; margin-top: 8px; }
   .img-drop-zone:hover, .img-drop-zone.dragover { border-color: #7F77DD; background: #f0effe; color: #7F77DD; }
   .img-thumb-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
@@ -225,6 +235,7 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
     <div class="nav-item" onclick="showPage('projects')">사업 목록</div>
     <div class="nav-item" onclick="showPage('schedule')">일정 관리</div>
     <div class="nav-item" onclick="showPage('memos')">메모장</div>
+    <div class="nav-item" onclick="showPage('checklists')">체크리스트</div>
   </div>
 
   <div class="main">
@@ -255,28 +266,26 @@ const statusEl = document.getElementById('db-status');
 
 // 초기 로드
 async function initLoad() {
-  const [projRes, evtRes, memoRes] = await Promise.all([
+  const [projRes, evtRes, memoRes, clRes] = await Promise.all([
     sb.from('projects').select('*').order('id', { ascending: false }),
     sb.from('events').select('*').order('date', { ascending: true }),
-    sb.from('memos').select('*').order('updated_at', { ascending: false })
+    sb.from('memos').select('*').order('updated_at', { ascending: false }),
+    sb.from('checklists').select('*').order('created_at', { ascending: false })
   ]);
 
-  if (projRes.error || evtRes.error || memoRes.error) {
-    // events/memos 테이블이 없을 수도 있으니 projects만 필수 체크
-    if (projRes.error) {
-      statusEl.textContent = '❌ DB 연결 실패';
-      statusEl.style.color = '#a32d2d';
-      // 로컬 폴백
-      window._DB = { projects: [], events: [], memos: [], nextId: 1 };
-      showPage('dashboard');
-      return;
-    }
+  if (projRes.error) {
+    statusEl.textContent = '❌ DB 연결 실패';
+    statusEl.style.color = '#a32d2d';
+    window._DB = { projects: [], events: [], memos: [], checklists: [], nextId: 1 };
+    showPage('dashboard');
+    return;
   }
 
   window._DB = {
-    projects: projRes.data || [],
-    events:   evtRes.data  || [],
-    memos:    memoRes.data || [],
+    projects:   projRes.data || [],
+    events:     evtRes.data  || [],
+    memos:      memoRes.data || [],
+    checklists: clRes.data   || [],
     nextId: 1
   };
 
@@ -340,14 +349,16 @@ window._sbDeleteMemo = async function(id) {
 };
 
 window._sbReload = async function() {
-  const [p, e, m] = await Promise.all([
+  const [p, e, m, cl] = await Promise.all([
     sb.from('projects').select('*').order('id', { ascending: false }),
     sb.from('events').select('*').order('date', { ascending: true }),
-    sb.from('memos').select('*').order('updated_at', { ascending: false })
+    sb.from('memos').select('*').order('updated_at', { ascending: false }),
+    sb.from('checklists').select('*').order('created_at', { ascending: false })
   ]);
-  window._DB.projects = p.data || window._DB.projects;
-  window._DB.events   = e.data || window._DB.events;
-  window._DB.memos    = m.data || window._DB.memos;
+  window._DB.projects   = p.data  || window._DB.projects;
+  window._DB.events     = e.data  || window._DB.events;
+  window._DB.memos      = m.data  || window._DB.memos;
+  window._DB.checklists = cl.data || window._DB.checklists;
 };
 
 // ── 로그인 체크 ──
@@ -461,7 +472,7 @@ function closeModal(e) { if (e.target === e.currentTarget) document.getElementBy
 function closeModalForce() { document.getElementById('modal-container').innerHTML = ''; }
 
 // ── 네비게이션 ──
-const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장' };
+const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장', checklists:'체크리스트' };
 
 function setNav(p) {
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -476,6 +487,7 @@ function showPage(p) {
   if (p === 'projects') a.innerHTML = `<button class="btn btn-primary" onclick="openAddProject()">+ 사업 추가</button>`;
   else if (p === 'schedule') a.innerHTML = `<button class="btn btn-primary" onclick="openAddEvent()">+ 일정 추가</button>`;
   else if (p === 'memos') a.innerHTML = `<button class="btn btn-primary" onclick="openEditMemo(null)">+ 메모 추가</button>`;
+  else if (p === 'checklists') a.innerHTML = `<button class="btn btn-primary" onclick="openAddChecklist()">+ 체크리스트 추가</button>`;
   else a.innerHTML = '';
   pages[p]();
 }
@@ -616,7 +628,29 @@ const pages = {
     }
 
     memoSearchRender();
+  },
+
+  checklists() {
+    const DB = window._DB;
+    const activeTab = window._clTab || '진행중';
+    const all = DB.checklists || [];
+    const list = all.filter(cl => (cl.status || '진행중') === activeTab);
+    document.getElementById('content').innerHTML = `
+      <div class="tab-bar">
+        <button class="tab ${activeTab==='진행중'?'active':''}" onclick="window._clTab='진행중';pages.checklists()">
+          진행중 <span style="opacity:.7">${all.filter(c=>(c.status||'진행중')==='진행중').length}</span>
+        </button>
+        <button class="tab ${activeTab==='완료'?'active':''}" onclick="window._clTab='완료';pages.checklists()">
+          완료 <span style="opacity:.7">${all.filter(c=>c.status==='완료').length}</span>
+        </button>
+      </div>
+      <div id="cl-list">
+        ${list.length
+          ? list.map(cl => renderClCard(cl, activeTab)).join('')
+          : '<div class="empty">체크리스트가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>'}
+      </div>`;
   }
+
 };
 
 // ── 메모 검색 렌더 ──
@@ -1573,6 +1607,171 @@ async function deleteMemo(id) {
   if (window._sbDeleteMemo) await window._sbDeleteMemo(id);
   if (window._sbReload) await window._sbReload();
   closeModalForce(); showPage('memos');
+}
+
+
+// ── 체크리스트 헬퍼 ──
+function clAutoName(cl, proj) {
+  const name = proj ? proj.name : '사업 없음';
+  const short = name.length > 20 ? name.slice(0,20)+'...' : name;
+  const period = cl.year_start === cl.year_end ? cl.year_start : cl.year_start+'~'+cl.year_end;
+  return short + ' · ' + cl.type + ' · ' + period;
+}
+
+function generateClItems(type, ys, ye, cc) {
+  const items = [];
+  if (type === '월간') {
+    for (let y = ys; y <= ye; y++)
+      for (let m = 1; m <= 12; m++)
+        items.push({ label: y+'년 '+m+'월', checked: false });
+  } else if (type === '분기별') {
+    for (let y = ys; y <= ye; y++)
+      for (let q = 1; q <= 4; q++)
+        items.push({ label: y+'년 '+q+'분기', checked: false });
+  } else {
+    for (let i = 1; i <= cc; i++)
+      items.push({ label: i+'번', checked: false });
+  }
+  return items;
+}
+
+function renderClCard(cl, tab) {
+  const DB = window._DB;
+  const proj = DB.projects.find(p => p.id === cl.project_id);
+  const items = cl.items ? (typeof cl.items === 'string' ? JSON.parse(cl.items) : cl.items) : [];
+  const checked = items.filter(i => i.checked).length;
+  const total = items.length;
+  const pct = total ? Math.round(checked/total*100) : 0;
+  const isDone = checked === total && total > 0;
+  return '<div class="cl-card">'
+    + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+    + '<div style="flex:1"><div style="font-size:14px;font-weight:500">'+clAutoName(cl,proj)+'</div>'
+    + '<div style="font-size:11px;color:#888;margin-top:2px">'+(proj?proj.name:'')+'</div></div>'
+    + '<span style="font-size:12px;color:#888;white-space:nowrap">'+checked+'/'+total+'</span>'
+    + '</div>'
+    + '<div class="cl-prog-bar"><div class="cl-prog-fill'+(isDone?' done':'')+'" style="width:'+pct+'%"></div></div>'
+    + '<div class="cl-items">'
+    + items.map((item,i) =>
+        '<div class="cl-item'+(item.checked?' checked':'')+'" onclick="toggleClItem('+cl.id+','+i+')">'
+        + '<span style="font-size:10px">'+(item.checked?'✓':'○')+'</span> '+item.label
+        + '</div>'
+      ).join('')
+    + '</div>'
+    + '<div style="display:flex;justify-content:flex-end;gap:6px;margin-top:.75rem;padding-top:.75rem;border-top:1px solid #f0f0ee">'
+    + '<button class="btn btn-sm" onclick="deleteChecklist('+cl.id+')">삭제</button>'
+    + (tab==='진행중'
+        ? '<button class="btn btn-sm btn-primary" onclick="completeChecklist('+cl.id+')">완료로 보내기</button>'
+        : '<button class="btn btn-sm" onclick="restoreChecklist('+cl.id+')">되돌리기</button>')
+    + '</div>'
+    + '</div>';
+}
+
+async function toggleClItem(clId, idx) {
+  const cl = window._DB.checklists.find(c => c.id === clId);
+  if (!cl) return;
+  const items = typeof cl.items === 'string' ? JSON.parse(cl.items) : cl.items;
+  items[idx].checked = !items[idx].checked;
+  cl.items = JSON.stringify(items);
+  await sb.from('checklists').update({ items: cl.items }).eq('id', clId);
+  pages.checklists();
+}
+
+async function completeChecklist(id) {
+  const cl = window._DB.checklists.find(c => c.id === id);
+  if (cl) cl.status = '완료';
+  await sb.from('checklists').update({ status: '완료' }).eq('id', id);
+  pages.checklists();
+}
+
+async function restoreChecklist(id) {
+  const cl = window._DB.checklists.find(c => c.id === id);
+  if (cl) cl.status = '진행중';
+  await sb.from('checklists').update({ status: '진행중' }).eq('id', id);
+  pages.checklists();
+}
+
+async function deleteChecklist(id) {
+  if (!confirm('체크리스트를 삭제할까요?')) return;
+  window._DB.checklists = window._DB.checklists.filter(c => c.id !== id);
+  await sb.from('checklists').delete().eq('id', id);
+  pages.checklists();
+}
+
+function openAddChecklist() {
+  const DB = window._DB;
+  const thisYear = new Date().getFullYear();
+  const years = [];
+  for (let y = thisYear-2; y <= thisYear+3; y++) years.push(y);
+  const yearOpts = years.map(y => '<option value="'+y+'" '+(y===thisYear?'selected':'')+'>'+y+'년</option>').join('');
+
+  document.getElementById('modal-container').innerHTML = '<div class="modal-overlay" onclick="closeModal(event)">'
+    + '<div class="modal" style="width:480px">'
+    + '<h3>체크리스트 추가</h3>'
+    + '<div class="form-group"><label>연결 사업</label>'
+    + '<select id="cl-proj"><option value="">없음</option>'
+    + DB.projects.map(p => '<option value="'+p.id+'">'+p.name+'</option>').join('')
+    + '</select></div>'
+    + '<div class="form-group"><label>유형</label>'
+    + '<div style="display:flex;gap:16px;margin-top:4px">'
+    + ['월간','분기별','자유입력'].map(t =>
+        '<label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:13px">'
+        + '<input type="radio" name="cl-type" value="'+t+'" '+(t==='월간'?'checked':'')+' onchange="clTypeChange()" style="width:auto"/> '+t
+        + '</label>'
+      ).join('')
+    + '</div></div>'
+    + '<div class="form-row">'
+    + '<div class="form-group"><label>시작 연도</label><select id="cl-ys" onchange="clPreview()">'+yearOpts+'</select></div>'
+    + '<div class="form-group"><label>종료 연도</label><select id="cl-ye" onchange="clPreview()">'+yearOpts+'</select></div>'
+    + '</div>'
+    + '<div class="form-group" id="cl-custom-wrap" style="display:none"><label>항목 개수</label>'
+    + '<input type="number" id="cl-cc" value="6" min="1" max="50" oninput="clPreview()"/></div>'
+    + '<div class="form-group"><label>미리보기</label>'
+    + '<div id="cl-preview" style="display:flex;flex-wrap:wrap;gap:5px;background:#f9f9f7;padding:.75rem;border-radius:8px;border:1px solid #ebebea;min-height:44px;max-height:110px;overflow-y:auto"></div>'
+    + '<div id="cl-count" style="font-size:11px;color:#888;margin-top:4px"></div></div>'
+    + '<div class="modal-footer">'
+    + '<button class="btn" onclick="closeModalForce()">취소</button>'
+    + '<button class="btn btn-primary" onclick="saveChecklist()">추가</button>'
+    + '</div></div></div>';
+  clPreview();
+}
+
+function clTypeChange() {
+  const type = document.querySelector('input[name="cl-type"]:checked')?.value;
+  document.getElementById('cl-custom-wrap').style.display = type === '자유입력' ? 'block' : 'none';
+  clPreview();
+}
+
+function clPreview() {
+  const type = document.querySelector('input[name="cl-type"]:checked')?.value || '월간';
+  const ys = parseInt(document.getElementById('cl-ys')?.value) || new Date().getFullYear();
+  const ye = parseInt(document.getElementById('cl-ye')?.value) || ys;
+  const cc = parseInt(document.getElementById('cl-cc')?.value) || 6;
+  const items = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
+  const wrap = document.getElementById('cl-preview');
+  const cnt  = document.getElementById('cl-count');
+  if (!wrap) return;
+  wrap.innerHTML = items.map(i =>
+    '<span style="padding:2px 8px;border:1px solid #e8e8e6;border-radius:999px;font-size:11px;color:#555">'+i.label+'</span>'
+  ).join('');
+  if (cnt) cnt.textContent = '총 '+items.length+'개 항목';
+}
+
+async function saveChecklist() {
+  const type = document.querySelector('input[name="cl-type"]:checked')?.value || '월간';
+  const ys = parseInt(document.getElementById('cl-ys').value);
+  const ye = parseInt(document.getElementById('cl-ye').value);
+  const cc = parseInt(document.getElementById('cl-cc')?.value) || 6;
+  const projId = parseInt(document.getElementById('cl-proj').value) || null;
+  const items = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
+  const { error } = await sb.from('checklists').insert([{
+    project_id: projId, type,
+    year_start: Math.min(ys,ye), year_end: Math.max(ys,ye),
+    items: JSON.stringify(items), status: '진행중'
+  }]);
+  if (error) return alert('저장 실패: ' + error.message);
+  if (window._sbReload) await window._sbReload();
+  closeModalForce();
+  showPage('checklists');
 }
 
 // ── 초기화 ──
