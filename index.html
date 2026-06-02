@@ -189,6 +189,11 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
   .cl-item.checked { background: #7F77DD; color: #fff; border-color: #7F77DD; }
   .cl-item.checked:hover { background: #534AB7; border-color: #534AB7; }
   .img-drop-zone { border: 2px dashed #d0d0cc; border-radius: 8px; padding: 1rem; text-align: center; font-size: 12px; color: #aaa; cursor: pointer; transition: all .15s; margin-top: 8px; }
+  .file-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #f9f9f7; border: 1px solid #ebebea; border-radius: 8px; margin-bottom: 6px; font-size: 12px; }
+  .file-item .file-icon { font-size: 18px; flex-shrink: 0; }
+  .file-item .file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #1a1a1a; }
+  .file-item .file-del { font-size: 16px; color: #ccc; cursor: pointer; background: none; border: none; flex-shrink: 0; padding: 0; line-height: 1; }
+  .file-item .file-del:hover { color: #e24b4a; }
   .img-drop-zone:hover, .img-drop-zone.dragover { border-color: #7F77DD; background: #f0effe; color: #7F77DD; }
   .img-thumb-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
   .img-thumb { position: relative; width: 80px; height: 80px; border-radius: 8px; overflow: hidden; border: 1px solid #e8e8e6; cursor: pointer; }
@@ -236,7 +241,7 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
     <div class="nav-item" onclick="showPage('projects')">사업 목록</div>
     <div class="nav-item" onclick="showPage('schedule')">일정 관리</div>
     <div class="nav-item" onclick="showPage('memos')">메모장</div>
-    <div class="nav-item" onclick="showPage('checklists')">유지보수 결과보고서</div>
+    <div class="nav-item" onclick="showPage('checklists')">체크리스트</div>
   </div>
 
   <div class="main">
@@ -473,7 +478,7 @@ function closeModal(e) { if (e.target === e.currentTarget) document.getElementBy
 function closeModalForce() { document.getElementById('modal-container').innerHTML = ''; }
 
 // ── 네비게이션 ──
-const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장', checklists:'유지보수 결과보고서' };
+const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장', checklists:'체크리스트' };
 
 function setNav(p) {
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -688,7 +693,8 @@ function memoSearchRender() {
         '<div class="memo-card" onclick="openViewMemo('+m.id+')">'
         + '<div class="memo-title">'+highlight(m.title||'제목 없음')+'</div>'
         + '<div class="memo-preview">'+highlight((m.content||'').replace(/\n/g,' '))+'</div>'
-        + (m.images && JSON.parse(m.images).length ? '<div style="margin-top:8px;display:flex;gap:4px">'+ JSON.parse(m.images).slice(0,3).map(url=>'<img src="'+url+'" style="width:36px;height:36px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e6"/>').join('') +'</div>' : '')
+        + (m.images && JSON.parse(m.images).length ? '<div style="margin-top:8px;display:flex;gap:4px;align-items:center">'+ JSON.parse(m.images).slice(0,3).map(url=>'<img src="'+url+'" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e6"/>').join('') +'</div>' : '')
+        + (m.files && JSON.parse(m.files).length ? '<div style="margin-top:6px;font-size:11px;color:#888">📎 파일 '+JSON.parse(m.files).length+'개</div>' : '')
         + '<div class="memo-date">'+fmtDate((m.updated_at||'').split('T')[0])+'</div>'
         + '</div>').join('') + '</div>'
     : '<div class="empty" style="margin-top:2rem">'
@@ -1451,10 +1457,20 @@ async function deleteEvent(id) {
 }
 
 // ── 메모 CRUD ──
+function fileIcon(name) {
+  const ext = (name||'').split('.').pop().toLowerCase();
+  if (['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️';
+  if (ext === 'pdf') return '📄';
+  if (['txt','md'].includes(ext)) return '📝';
+  return '📎';
+}
+
 function openViewMemo(id) {
   const m = window._DB.memos.find(x => x.id===id);
   if (!m) return;
-  const imgs = m.images ? JSON.parse(m.images) : [];
+  const imgs  = m.images ? JSON.parse(m.images) : [];
+  const files = m.files  ? JSON.parse(m.files)  : [];
+
   const imgHtml = imgs.length ? `
     <div class="img-thumb-wrap" style="margin-top:12px">
       ${imgs.map((url,i) => `
@@ -1462,6 +1478,18 @@ function openViewMemo(id) {
           <img src="${url}" alt="첨부 이미지"/>
         </div>`).join('')}
     </div>` : '';
+
+  const fileHtml = files.length ? `
+    <div style="margin-top:12px">
+      ${files.map(f => `
+        <div class="file-item">
+          <span class="file-icon">${fileIcon(f.name)}</span>
+          <span class="file-name">${f.name}</span>
+          <a href="${f.url}" target="_blank" download="${f.name}"
+            style="font-size:11px;color:#7F77DD;text-decoration:none;white-space:nowrap">열기 / 다운로드</a>
+        </div>`).join('')}
+    </div>` : '';
+
   document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
     <div class="modal" style="width:520px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
@@ -1469,7 +1497,7 @@ function openViewMemo(id) {
         <span style="font-size:11px;color:#bbb">${fmtDate((m.updated_at||'').split('T')[0])}</span>
       </div>
       <div style="font-size:13px;line-height:1.8;white-space:pre-wrap;background:#f5f5f3;padding:1rem;border-radius:8px;min-height:100px">${m.content||''}</div>
-      ${imgHtml}
+      ${imgHtml}${fileHtml}
       <div class="modal-footer">
         <button class="btn btn-danger" onclick="deleteMemo(${id})">삭제</button>
         <button class="btn" onclick="closeModalForce()">닫기</button>
@@ -1481,10 +1509,11 @@ function openViewMemo(id) {
 
 function openEditMemo(id) {
   const m = id ? window._DB.memos.find(x => x.id===id) : null;
-  window._memoImgs = m && m.images ? JSON.parse(m.images) : [];
+  window._memoImgs  = m && m.images ? JSON.parse(m.images) : [];
+  window._memoFiles = m && m.files  ? JSON.parse(m.files)  : [];
 
   document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal" style="width:520px">
+    <div class="modal" style="width:540px">
       <h3>${m?'메모 수정':'새 메모'}</h3>
       <div class="form-group"><label>제목</label><input id="m-title" value="${m?m.title:''}"/></div>
       <div class="form-group"><label>내용</label><textarea id="m-content" style="min-height:160px">${m?m.content:''}</textarea></div>
@@ -1495,6 +1524,15 @@ function openEditMemo(id) {
         </div>
         <input type="file" id="img-file-input" accept="image/*" multiple style="display:none" onchange="handleImgFiles(this.files)"/>
         <div class="img-thumb-wrap" id="img-preview"></div>
+      </div>
+      <div class="form-group">
+        <label>파일 첨부 <span style="font-size:11px;color:#aaa;font-weight:400">txt, pdf 등</span></label>
+        <div class="img-drop-zone" id="file-drop-zone" onclick="document.getElementById('file-input').click()"
+          style="margin-top:0">
+          클릭하거나 파일을 드래그 앤 드롭
+        </div>
+        <input type="file" id="file-input" accept=".txt,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.zip" multiple style="display:none" onchange="handleAttachFiles(this.files)"/>
+        <div id="file-preview"></div>
       </div>
       <div class="modal-footer">
         <span id="img-upload-status" style="font-size:12px;color:#888"></span>
@@ -1507,7 +1545,9 @@ function openEditMemo(id) {
   setTimeout(() => {
     document.getElementById('m-content').focus();
     renderImgPreview();
+    renderFilePreview();
     setupImgDropZone();
+    setupFileDropZone();
   }, 50);
 }
 
@@ -1525,6 +1565,51 @@ function renderImgPreview() {
 function removeImg(i) {
   window._memoImgs.splice(i, 1);
   renderImgPreview();
+}
+
+function renderFilePreview() {
+  const wrap = document.getElementById('file-preview');
+  if (!wrap) return;
+  wrap.innerHTML = (window._memoFiles||[]).map((f, i) =>
+    '<div class="file-item">'
+    + '<span class="file-icon">'+fileIcon(f.name)+'</span>'
+    + '<span class="file-name">'+f.name+'</span>'
+    + '<button class="file-del" onclick="removeFile('+i+')">×</button>'
+    + '</div>'
+  ).join('');
+}
+
+function removeFile(i) {
+  window._memoFiles.splice(i, 1);
+  renderFilePreview();
+}
+
+function setupFileDropZone() {
+  const zone = document.getElementById('file-drop-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); handleAttachFiles(e.dataTransfer.files); });
+}
+
+async function handleAttachFiles(files) {
+  const status = document.getElementById('img-upload-status');
+  if (status) status.textContent = '파일 업로드 중...';
+  for (const file of files) {
+    if (!file) continue;
+    try {
+      const ext  = file.name.split('.').pop() || 'bin';
+      const path = 'file-'+Date.now()+'-'+Math.random().toString(36).slice(2)+'.'+ext;
+      const { error } = await window._sb.storage.from('memo-files').upload(path, file, { contentType: file.type });
+      if (error) throw error;
+      const { data: urlData } = window._sb.storage.from('memo-files').getPublicUrl(path);
+      window._memoFiles.push({ name: file.name, url: urlData.publicUrl });
+      renderFilePreview();
+    } catch(e) {
+      alert('파일 업로드 실패: ' + e.message);
+    }
+  }
+  if (status) status.textContent = '';
 }
 
 function setupImgDropZone() {
@@ -1573,14 +1658,15 @@ async function saveMemo(id) {
     id: id || undefined,
     title:      document.getElementById('m-title').value.trim(),
     content,
-    images:     JSON.stringify(window._memoImgs || []),
+    images:     JSON.stringify(window._memoImgs  || []),
+    files:      JSON.stringify(window._memoFiles || []),
     updated_at: now,
     created_at: id ? undefined : now
   };
   if (!id) delete data.created_at;
   if (window._sbSaveMemo) await window._sbSaveMemo(data);
   if (window._sbReload) await window._sbReload();
-  window._memoImgs = [];
+  window._memoImgs = []; window._memoFiles = [];
   closeModalForce(); showPage('memos');
 }
 
