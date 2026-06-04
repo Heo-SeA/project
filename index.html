@@ -297,7 +297,23 @@ async function initLoad() {
 
   statusEl.textContent = '☁️ DB 연결됨';
   statusEl.style.color = '#0f6e56';
+
+  // 종료일 지난 사업 자동 완료 처리
+  await autoCompleteProjects();
+
   showPage('dashboard');
+}
+
+async function autoCompleteProjects() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const toComplete = window._DB.projects.filter(p =>
+    p.status === '진행중' && p.due_date && p.due_date < todayStr
+  );
+  if (!toComplete.length) return;
+  for (const p of toComplete) {
+    await sb.from('projects').update({ status: '완료' }).eq('id', p.id);
+    p.status = '완료';
+  }
 }
 
 // ── Supabase CRUD ──
