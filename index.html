@@ -2060,6 +2060,20 @@ async function updateChecklist(id) {
     .wbs-chart-row { min-height:76px; border-bottom:1px solid #f0f0ee; position:relative; display:flex; box-sizing:border-box; }
     .wbs-bar { position:absolute; height:32px; border-radius:7px; display:flex; align-items:center; padding:0 10px; color:#fff; font-size:12px; font-weight:500; box-shadow:0 2px 4px rgba(0,0,0,.08); cursor:pointer; top:50%; transform:translateY(-50%); z-index:2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; box-sizing:border-box; }
     .wbs-bar:hover { opacity:.85; }
+    .wbs-controls { display:flex; align-items:center; gap:8px; }
+    .wbs-zoom-btn { padding:3px 10px; font-size:11px; border:1px solid #d0d0cc; border-radius:6px; background:#fff; cursor:pointer; font-family:inherit; color:#1a1a1a; }
+    .wbs-zoom-btn:hover { background:#f5f5f3; }
+    .wbs-zoom-btn.active { background:#7F77DD; color:#fff; border-color:#7F77DD; }
+    .wbs-right { cursor:grab; }
+    .wbs-right.grabbing { cursor:grabbing; user-select:none; }
+    .wbs-order-btn { font-size:12px; color:#888; background:none; border:none; cursor:pointer; padding:0 2px; line-height:1; }
+    .wbs-order-btn:hover { color:#7F77DD; }
+    .wbs-period-item { display:flex; align-items:center; gap:4px; margin-bottom:4px; }
+    .wbs-period-item:last-child { margin-bottom:0; }
+    .wbs-add-period { font-size:11px; color:#7F77DD; cursor:pointer; background:none; border:none; font-family:inherit; padding:2px 0; margin-top:4px; display:block; }
+    .wbs-add-period:hover { text-decoration:underline; }
+    .wbs-del-period { font-size:13px; color:#ccc; cursor:pointer; background:none; border:none; padding:0; line-height:1; }
+    .wbs-del-period:hover { color:#e24b4a; }
     .wbs-today-line { position:absolute; top:0; bottom:0; width:2px; background:#7F77DD; opacity:.4; z-index:3; pointer-events:none; }
     .wbs-top-panel { background:#fff; padding:1rem 1.25rem; border:1px solid #e8e8e6; border-radius:12px; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center; }
     .wbs-period-row { font-size:12px; color:#888; display:flex; gap:8px; align-items:center; margin-top:6px; }
@@ -2076,7 +2090,7 @@ async function updateChecklist(id) {
 // WBS 공휴일 (2026)
 const WBS_HOLIDAYS = ["01-01","02-16","02-17","02-18","03-01","05-05","05-24","06-06","08-15","09-24","09-25","09-26","10-03","10-09","12-25"];
 const WBS_COLORS = ['#7986cb','#009688','#42a5f5','#b45309','#ec4899','#7cb342','#f4511e','#8e8e8e','#0f5132'];
-const WBS_CELL = 36;
+let WBS_CELL = 36; // 줌 레벨: 18(월), 36(일기본)
 let wbsCurrent = null; // 현재 열린 wbs_project
 let wbsActiveBundleId = null;
 
@@ -2168,73 +2182,212 @@ function wbsRenderTimeline() {
   const today = new Date();
   const todayOff = Math.max(0, Math.ceil((today - startD) / 86400000));
 
-  // 월 헤더
+  // 월/일 헤더
   let monthHtml = '', dayHtml = '';
   let cur = new Date(startD);
-  let curMonth = -1, mCount = 0, mCells = [];
+  let curMonth = -1, mCount = 0, mLabel = '';
   for (let i = 0; i < totalDays; i++) {
     const m = cur.getMonth(), d = cur.getDate(), dow = cur.getDay();
     const mmdd = String(cur.getMonth()+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
-    const isSat = dow===6, isSun = dow===0 || WBS_HOLIDAYS.includes(mmdd);
+    const isSat = dow===6, isSun = dow===0||WBS_HOLIDAYS.includes(mmdd);
     if (m !== curMonth) {
-      if (mCount > 0) monthHtml += `<div class="wbs-month-cell" style="width:${mCount*WBS_CELL}px">${mCells[0]}</div>`;
-      curMonth = m; mCount = 0; mCells = [`${cur.getFullYear()}년 ${cur.getMonth()+1}월`];
+      if (mCount > 0) monthHtml += '<div class="wbs-month-cell" style="width:'+(mCount*WBS_CELL)+'px">'+mLabel+'</div>';
+      curMonth = m; mCount = 0; mLabel = cur.getFullYear()+'년 '+(cur.getMonth()+1)+'월';
     }
     mCount++;
-    dayHtml += `<div class="wbs-day-cell${isSat?' wbs-sat':isSun?' wbs-sun':''}">${d}</div>`;
+    if (WBS_CELL >= 20) {
+      dayHtml += '<div class="wbs-day-cell'+(isSat?' wbs-sat':isSun?' wbs-sun':'')+'" style="width:'+WBS_CELL+'px">'+d+'</div>';
+    } else {
+      // 축소 모드: 월초만 표시
+      dayHtml += '<div class="wbs-day-cell'+(isSat?' wbs-sat':isSun?' wbs-sun':'')+'" style="width:'+WBS_CELL+'px">'+(d===1?d:'')+'</div>';
+    }
     cur.setDate(cur.getDate()+1);
   }
-  if (mCount > 0) monthHtml += `<div class="wbs-month-cell" style="width:${mCount*WBS_CELL}px">${mCells[0]}</div>`;
+  if (mCount > 0) monthHtml += '<div class="wbs-month-cell" style="width:'+(mCount*WBS_CELL)+'px">'+mLabel+'</div>';
 
   // 행들
-  let rowsHtml = '';
-  let leftHtml = '';
+  let rowsHtml = '', leftHtml = '';
   bundles.forEach((b, idx) => {
     const color = WBS_COLORS[b.color_idx % WBS_COLORS.length];
-    const offsetDays = Math.max(0, Math.ceil((new Date(b.start_date) - startD) / 86400000));
-    const durDays = Math.max(1, Math.ceil((new Date(b.end_date) - new Date(b.start_date)) / 86400000) + 1);
+    // periods 파싱 (B안: periods JSONB)
+    let periods = [];
+    if (b.periods) {
+      periods = typeof b.periods === 'string' ? JSON.parse(b.periods) : b.periods;
+    } else if (b.start_date) {
+      periods = [{label:'1차', start: b.start_date, end: b.end_date||b.start_date}];
+    }
 
-    // 좌측 행
-    leftHtml += `<div class="wbs-task-row">
-      <div class="wbs-task-top">
-        <input class="wbs-name-input" value="${b.name||''}" onchange="wbsUpdateBundle(${b.id},'name',this.value)"/>
-        <span class="wbs-del-link" onclick="wbsDeleteBundle(${b.id})">삭제</span>
-      </div>
-      <div class="wbs-date-row">
-        <input type="date" value="${b.start_date||''}" onchange="wbsUpdateBundle(${b.id},'start_date',this.value)"> ~
-        <input type="date" value="${b.end_date||''}" onchange="wbsUpdateBundle(${b.id},'end_date',this.value)">
-      </div>
-    </div>`;
+    // 좌측: 이름 + 순서 버튼 + 기간들
+    const isFirst = idx === 0;
+    const isLast  = idx === bundles.length - 1;
+    let periodsInputHtml = periods.map((p, pi) =>
+      '<div class="wbs-period-item">'
+      + '<input type="date" value="'+(p.start||'')+'" style="width:120px" data-bid="'+b.id+'" data-pi="'+pi+'" data-field="start" onchange="wbsUpdatePeriod2(this)">'
+      + '<span style="color:#aaa;font-size:11px">~</span>'
+      + '<input type="date" value="'+(p.end||'')+'" style="width:120px" data-bid="'+b.id+'" data-pi="'+pi+'" data-field="end" onchange="wbsUpdatePeriod2(this)">'
+      + (periods.length > 1 ? '<button class="wbs-del-period" onclick="wbsDelPeriod('+b.id+','+pi+')">×</button>' : '')
+      + '</div>'
+    ).join('');
 
-    // 우측 차트 행
+    leftHtml += '<div class="wbs-task-row">'
+      + '<div class="wbs-task-top">'
+      + '<div style="display:flex;align-items:center;gap:4px">'
+      + '<button class="wbs-order-btn" '+(isFirst?'disabled style="opacity:.3"':'')+' onclick="wbsMoveUp('+b.id+')">▲</button>'
+      + '<button class="wbs-order-btn" '+(isLast?'disabled style="opacity:.3"':'')+' onclick="wbsMoveDown('+b.id+')">▼</button>'
+      + '<input class="wbs-name-input" value="'+(b.name||'')+'" data-bid="'+b.id+'" onchange="wbsUpdateBundleName(this)"/>'
+      + '</div>'
+      + '<span class="wbs-del-link" onclick="wbsDeleteBundle('+b.id+')">삭제</span>'
+      + '</div>'
+      + periodsInputHtml
+      + '<button class="wbs-add-period" onclick="wbsAddPeriod('+b.id+')">+ 기간 추가</button>'
+      + '</div>';
+
+    // 우측 배경
     let bgCells = '', cur2 = new Date(startD);
     for (let k = 0; k < totalDays; k++) {
-      const dow = cur2.getDay();
-      const mmdd = String(cur2.getMonth()+1).padStart(2,'0')+'-'+String(cur2.getDate()).padStart(2,'0');
-      const isSat = dow===6, isSun = dow===0||WBS_HOLIDAYS.includes(mmdd);
-      bgCells += `<div class="wbs-grid-cell${isSat?' wbs-sat':isSun?' wbs-sun':''}"></div>`;
+      const dow2 = cur2.getDay();
+      const mmdd2 = String(cur2.getMonth()+1).padStart(2,'0')+'-'+String(cur2.getDate()).padStart(2,'0');
+      const isSat2 = dow2===6, isSun2 = dow2===0||WBS_HOLIDAYS.includes(mmdd2);
+      bgCells += '<div class="wbs-grid-cell'+(isSat2?' wbs-sat':isSun2?' wbs-sun':'')+'" style="width:'+WBS_CELL+'px"></div>';
       cur2.setDate(cur2.getDate()+1);
     }
 
-    rowsHtml += `<div class="wbs-chart-row" style="width:${totalDays*WBS_CELL}px">
-      ${bgCells}
-      <div class="wbs-today-line" style="left:${todayOff*WBS_CELL}px"></div>
-      <div class="wbs-bar" style="left:${offsetDays*WBS_CELL}px;width:${durDays*WBS_CELL-4}px;background:${color}" onclick="wbsOpenModal(${b.id})">${b.name||''}</div>
-    </div>`;
+    // 기간별 바 여러 개
+    let barsHtml = periods.map((p, pi) => {
+      if (!p.start) return '';
+      const off = Math.max(0, Math.ceil((new Date(p.start) - startD) / 86400000));
+      const dur = Math.max(1, Math.ceil((new Date(p.end||p.start) - new Date(p.start)) / 86400000) + 1);
+      const barW = Math.max(WBS_CELL, dur * WBS_CELL - 4);
+      return '<div class="wbs-bar" style="left:'+(off*WBS_CELL)+'px;width:'+barW+'px;background:'+color+';top:'+(periods.length>1?'calc(50% + '+(pi-Math.floor(periods.length/2))*18+'px)':'50%')+';transform:translateY(-50%)" onclick="wbsOpenModal('+b.id+')">'+(b.name||'')+(periods.length>1?' ('+(p.label||((pi+1)+'차'))+')':'')+'</div>';
+    }).join('');
+
+    rowsHtml += '<div class="wbs-chart-row" style="width:'+(totalDays*WBS_CELL)+'px;min-height:'+(Math.max(52, periods.length*40))+'px">'
+      + bgCells
+      + '<div class="wbs-today-line" style="left:'+(todayOff*WBS_CELL)+'px"></div>'
+      + barsHtml
+      + '</div>';
   });
 
-  workspace.innerHTML = `
-    <div class="wbs-left">
-      <div class="wbs-panel-header">단계 및 기간 설정</div>
-      <div id="wbs-left-rows">${leftHtml}</div>
-    </div>
-    <div class="wbs-right">
-      <div class="wbs-timeline-header" style="width:${totalDays*WBS_CELL}px">
-        <div class="wbs-month-row">${monthHtml}</div>
-        <div class="wbs-day-row">${dayHtml}</div>
-      </div>
-      <div id="wbs-chart-rows">${rowsHtml}</div>
-    </div>`;
+  workspace.innerHTML =
+    '<div class="wbs-left">'
+    + '<div class="wbs-panel-header" style="display:flex;justify-content:space-between;align-items:center">'
+    + '<span>단계 및 기간</span>'
+    + '<div class="wbs-controls">'
+    + '<button class="wbs-zoom-btn '+(WBS_CELL>=36?'active':'')+'" onclick="wbsSetZoom(36)">일</button>'
+    + '<button class="wbs-zoom-btn '+(WBS_CELL<20?'active':'')+'" onclick="wbsSetZoom(14)">축소</button>'
+    + '</div>'
+    + '</div>'
+    + '<div id="wbs-left-rows">'+leftHtml+'</div>'
+    + '</div>'
+    + '<div class="wbs-right" id="wbs-right-panel">'
+    + '<div class="wbs-timeline-header" style="width:'+(totalDays*WBS_CELL)+'px">'
+    + '<div class="wbs-month-row">'+monthHtml+'</div>'
+    + '<div class="wbs-day-row">'+dayHtml+'</div>'
+    + '</div>'
+    + '<div id="wbs-chart-rows">'+rowsHtml+'</div>'
+    + '</div>';
+
+  // 드래그 스크롤 설정
+  setupWbsDragScroll();
+}
+
+function wbsSetZoom(size) {
+  WBS_CELL = size;
+  wbsRenderTimeline();
+}
+
+function setupWbsDragScroll() {
+  const el = document.getElementById('wbs-right-panel');
+  if (!el) return;
+  let isDown = false, startX, scrollLeft;
+  el.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('wbs-bar')) return;
+    isDown = true; startX = e.pageX - el.offsetLeft; scrollLeft = el.scrollLeft;
+    el.classList.add('grabbing');
+  });
+  el.addEventListener('mouseleave', () => { isDown = false; el.classList.remove('grabbing'); });
+  el.addEventListener('mouseup', () => { isDown = false; el.classList.remove('grabbing'); });
+  el.addEventListener('mousemove', e => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - el.offsetLeft;
+    el.scrollLeft = scrollLeft - (x - startX);
+  });
+}
+
+// 이름 수정 헬퍼
+async function wbsUpdateBundleName(el) {
+  await wbsUpdateBundle(parseInt(el.dataset.bid), 'name', el.value);
+}
+
+// 기간 추가
+async function wbsAddPeriod(bundleId) {
+  const b = window._DB.wbs_bundles.find(x=>x.id===bundleId);
+  if (!b) return;
+  let periods = b.periods ? (typeof b.periods==='string'?JSON.parse(b.periods):b.periods) : [{label:'1차',start:b.start_date,end:b.end_date}];
+  periods.push({label:(periods.length+1)+'차', start:b.start_date||'', end:b.end_date||''});
+  b.periods = periods;
+  await window._sb.from('wbs_bundles').update({periods}).eq('id',bundleId);
+  wbsRenderTimeline();
+}
+
+// 기간 삭제
+async function wbsDelPeriod(bundleId, idx) {
+  const b = window._DB.wbs_bundles.find(x=>x.id===bundleId);
+  if (!b) return;
+  let periods = typeof b.periods==='string'?JSON.parse(b.periods):b.periods;
+  periods.splice(idx,1);
+  b.periods = periods;
+  await window._sb.from('wbs_bundles').update({periods}).eq('id',bundleId);
+  wbsRenderTimeline();
+}
+
+// 기간 날짜 수정
+async function wbsUpdatePeriod2(el) {
+  const bundleId = parseInt(el.dataset.bid);
+  const idx      = parseInt(el.dataset.pi);
+  const field    = el.dataset.field;
+  const value    = el.value;
+  const b = window._DB.wbs_bundles.find(x=>x.id===bundleId);
+  if (!b) return;
+  let periods = b.periods ? (typeof b.periods==='string'?JSON.parse(b.periods):b.periods) : [{label:'1차',start:b.start_date,end:b.end_date}];
+  periods[idx][field] = value;
+  b.periods = periods;
+  if (idx===0) { b.start_date=periods[0].start; b.end_date=periods[0].end; }
+  await window._sb.from('wbs_bundles').update({periods, start_date:b.start_date, end_date:b.end_date}).eq('id',bundleId);
+  wbsRenderTimeline();
+}
+
+// 순서 올리기
+async function wbsMoveUp(id) {
+  const DB = window._DB;
+  const bundles = (DB.wbs_bundles||[]).filter(b=>b.wbs_project_id===wbsCurrent.id)
+    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const idx = bundles.findIndex(b=>b.id===id);
+  if (idx<=0) return;
+  const a=bundles[idx], prev=bundles[idx-1];
+  const tmp=a.sort_order; a.sort_order=prev.sort_order; prev.sort_order=tmp;
+  await Promise.all([
+    window._sb.from('wbs_bundles').update({sort_order:a.sort_order}).eq('id',a.id),
+    window._sb.from('wbs_bundles').update({sort_order:prev.sort_order}).eq('id',prev.id)
+  ]);
+  wbsRenderTimeline();
+}
+
+// 순서 내리기
+async function wbsMoveDown(id) {
+  const DB = window._DB;
+  const bundles = (DB.wbs_bundles||[]).filter(b=>b.wbs_project_id===wbsCurrent.id)
+    .sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  const idx = bundles.findIndex(b=>b.id===id);
+  if (idx>=bundles.length-1) return;
+  const a=bundles[idx], next=bundles[idx+1];
+  const tmp=a.sort_order; a.sort_order=next.sort_order; next.sort_order=tmp;
+  await Promise.all([
+    window._sb.from('wbs_bundles').update({sort_order:a.sort_order}).eq('id',a.id),
+    window._sb.from('wbs_bundles').update({sort_order:next.sort_order}).eq('id',next.id)
+  ]);
+  wbsRenderTimeline();
 }
 
 async function wbsUpdatePeriod() {
