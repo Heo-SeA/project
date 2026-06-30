@@ -1734,16 +1734,28 @@ function clAutoName(cl, proj) {
   return name + ' · ' + cl.type + ' · ' + period;
 }
 
-function generateClItems(type, ys, ye, cc) {
+function generateClItems(type, ymStart, ymEnd, cc) {
+  // ymStart, ymEnd: "YYYY-MM" 형식 문자열 (자유입력일 땐 무시)
   const items = [];
   if (type === '월간') {
-    for (let y = ys; y <= ye; y++)
-      for (let m = 1; m <= 12; m++)
-        items.push({ label: y+'년 '+m+'월', checked: false });
+    let [sy, sm] = ymStart.split('-').map(Number);
+    let [ey, em] = ymEnd.split('-').map(Number);
+    let y = sy, m = sm;
+    while (y < ey || (y === ey && m <= em)) {
+      items.push({ label: y+'년 '+m+'월', checked: false });
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
   } else if (type === '분기별') {
-    for (let y = ys; y <= ye; y++)
-      for (let q = 1; q <= 4; q++)
-        items.push({ label: y+'년 '+q+'분기', checked: false });
+    let [sy, sm] = ymStart.split('-').map(Number);
+    let [ey, em] = ymEnd.split('-').map(Number);
+    const sq = Math.ceil(sm/3), eq = Math.ceil(em/3);
+    let y = sy, q = sq;
+    while (y < ey || (y === ey && q <= eq)) {
+      items.push({ label: y+'년 '+q+'분기', checked: false });
+      q++;
+      if (q > 4) { q = 1; y++; }
+    }
   } else {
     for (let i = 1; i <= cc; i++)
       items.push({ label: i+'번', checked: false });
@@ -1843,9 +1855,9 @@ function openAddChecklist() {
         + '</label>'
       ).join('')
     + '</div></div>'
-    + '<div class="form-row">'
-    + '<div class="form-group"><label>시작 연도</label><select id="cl-ys" onchange="clPreview()">'+yearOpts+'</select></div>'
-    + '<div class="form-group"><label>종료 연도</label><select id="cl-ye" onchange="clPreview()">'+yearOpts+'</select></div>'
+    + '<div class="form-row" id="cl-period-wrap">'
+    + '<div class="form-group"><label>시작 월</label><input type="month" id="cl-ys" value="'+thisYear+'-01" onchange="clPreview()"/></div>'
+    + '<div class="form-group"><label>종료 월</label><input type="month" id="cl-ye" value="'+thisYear+'-12" onchange="clPreview()"/></div>'
     + '</div>'
     + '<div class="form-group" id="cl-custom-wrap" style="display:none"><label>항목 개수</label>'
     + '<input type="number" id="cl-cc" value="6" min="1" max="50" oninput="clPreview()"/></div>'
@@ -1870,15 +1882,19 @@ function openAddChecklist() {
 function clTypeChange() {
   const type = document.querySelector('input[name="cl-type"]:checked')?.value;
   document.getElementById('cl-custom-wrap').style.display = type === '자유입력' ? 'block' : 'none';
+  const pw = document.getElementById('cl-period-wrap');
+  if (pw) pw.style.display = type === '자유입력' ? 'none' : 'grid';
   clPreview();
 }
 
 function clPreview() {
   const type = document.querySelector('input[name="cl-type"]:checked')?.value || '월간';
-  const ys = parseInt(document.getElementById('cl-ys')?.value) || new Date().getFullYear();
-  const ye = parseInt(document.getElementById('cl-ye')?.value) || ys;
+  const thisYM = new Date().toISOString().slice(0,7);
+  let ys = document.getElementById('cl-ys')?.value || thisYM;
+  let ye = document.getElementById('cl-ye')?.value || thisYM;
+  if (ys > ye) { const t = ys; ys = ye; ye = t; }
   const cc = parseInt(document.getElementById('cl-cc')?.value) || 6;
-  const items = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
+  const items = generateClItems(type, ys, ye, cc);
   const wrap = document.getElementById('cl-preview');
   const cnt  = document.getElementById('cl-count');
   if (!wrap) return;
@@ -1890,16 +1906,19 @@ function clPreview() {
 
 async function saveChecklist() {
   const type = document.querySelector('input[name="cl-type"]:checked')?.value || '월간';
-  const ys = parseInt(document.getElementById('cl-ys').value);
-  const ye = parseInt(document.getElementById('cl-ye').value);
+  const thisYM = new Date().toISOString().slice(0,7);
+  let ys = document.getElementById('cl-ys').value || thisYM;
+  let ye = document.getElementById('cl-ye').value || thisYM;
+  if (ys > ye) { const t = ys; ys = ye; ye = t; }
   const cc = parseInt(document.getElementById('cl-cc')?.value) || 6;
   const projId = parseInt(document.getElementById('cl-proj').value) || null;
-  const items = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
+  const items = generateClItems(type, ys, ye, cc);
   const manager  = document.getElementById('cl-manager')?.value.trim() || '';
   const delivery = document.querySelector('input[name="cl-delivery"]:checked')?.value || '';
   const { error } = await window._sb.from('checklists').insert([{
     project_id: projId, type, manager, delivery,
-    year_start: Math.min(ys,ye), year_end: Math.max(ys,ye),
+    year_start: parseInt(ys.slice(0,4)), year_end: parseInt(ye.slice(0,4)),
+    period_start: ys, period_end: ye,
     items: JSON.stringify(items), status: '진행중'
   }]);
   if (error) return alert('저장 실패: ' + error.message);
@@ -1913,10 +1932,8 @@ function openEditChecklist(id) {
   const cl = DB.checklists.find(c => c.id === id);
   if (!cl) return;
   window.clEditId = id;
-  const thisYear = new Date().getFullYear();
-  const years = [];
-  for (let y = thisYear-2; y <= thisYear+3; y++) years.push(y);
-  const yearOpts = (sel) => years.map(y => '<option value="'+y+'" '+(y===sel?'selected':'')+'>'+y+'년</option>').join('');
+  const ysVal = cl.period_start || (cl.year_start ? cl.year_start+'-01' : new Date().toISOString().slice(0,7));
+  const yeVal = cl.period_end   || (cl.year_end   ? cl.year_end+'-12'   : new Date().toISOString().slice(0,7));
 
   document.getElementById('modal-container').innerHTML = '<div class="modal-overlay" onclick="closeModal(event)">'
     + '<div class="modal" style="width:520px">'
@@ -1943,9 +1960,9 @@ function openEditChecklist(id) {
         + '</label>'
       ).join('')
     + '</div></div>'
-    + '<div class="form-row">'
-    + '<div class="form-group"><label>시작 연도</label><select id="cl-edit-ys" onchange="clEditPreview()">'+yearOpts(cl.year_start)+'</select></div>'
-    + '<div class="form-group"><label>종료 연도</label><select id="cl-edit-ye" onchange="clEditPreview()">'+yearOpts(cl.year_end)+'</select></div>'
+    + '<div class="form-row" id="cl-edit-period-wrap" style="display:'+(cl.type==='자유입력'?'none':'grid')+'">'
+    + '<div class="form-group"><label>시작 월</label><input type="month" id="cl-edit-ys" value="'+ysVal+'" onchange="clEditPreview()"/></div>'
+    + '<div class="form-group"><label>종료 월</label><input type="month" id="cl-edit-ye" value="'+yeVal+'" onchange="clEditPreview()"/></div>'
     + '</div>'
     + '<div class="form-group" id="cl-edit-custom-wrap" style="display:'+(cl.type==='자유입력'?'block':'none')+'">'
     + '<label>항목 개수</label><input type="number" id="cl-edit-cc" value="'+(cl.items?(typeof cl.items==='string'?JSON.parse(cl.items):cl.items).length:6)+'" min="1" max="50" oninput="clEditPreview()"/></div>'
@@ -1962,15 +1979,19 @@ function openEditChecklist(id) {
 function clEditTypeChange() {
   const type = document.querySelector('input[name="cl-edit-type"]:checked')?.value;
   document.getElementById('cl-edit-custom-wrap').style.display = type === '자유입력' ? 'block' : 'none';
+  const pw = document.getElementById('cl-edit-period-wrap');
+  if (pw) pw.style.display = type === '자유입력' ? 'none' : 'grid';
   clEditPreview();
 }
 
 function clEditPreview() {
   const type = document.querySelector('input[name="cl-edit-type"]:checked')?.value || '월간';
-  const ys = parseInt(document.getElementById('cl-edit-ys')?.value) || new Date().getFullYear();
-  const ye = parseInt(document.getElementById('cl-edit-ye')?.value) || ys;
+  const thisYM = new Date().toISOString().slice(0,7);
+  let ys = document.getElementById('cl-edit-ys')?.value || thisYM;
+  let ye = document.getElementById('cl-edit-ye')?.value || thisYM;
+  if (ys > ye) { const t = ys; ys = ye; ye = t; }
   const cc = parseInt(document.getElementById('cl-edit-cc')?.value) || 6;
-  const items = generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc);
+  const items = generateClItems(type, ys, ye, cc);
   const wrap = document.getElementById('cl-edit-preview');
   const cnt  = document.getElementById('cl-edit-count');
   if (!wrap) return;
@@ -1993,8 +2014,10 @@ async function updateChecklist(id) {
   const manager  = document.getElementById('cl-edit-manager').value.trim();
   const delivery = document.querySelector('input[name="cl-edit-delivery"]:checked')?.value || '';
   const type     = document.querySelector('input[name="cl-edit-type"]:checked')?.value || '월간';
-  const ys       = parseInt(document.getElementById('cl-edit-ys').value);
-  const ye       = parseInt(document.getElementById('cl-edit-ye').value);
+  const thisYM   = new Date().toISOString().slice(0,7);
+  let ys = document.getElementById('cl-edit-ys')?.value || thisYM;
+  let ye = document.getElementById('cl-edit-ye')?.value || thisYM;
+  if (ys > ye) { const t = ys; ys = ye; ye = t; }
   const cc       = parseInt(document.getElementById('cl-edit-cc')?.value) || 6;
 
   const cl = window._DB.checklists.find(c => c.id === id);
@@ -2002,19 +2025,21 @@ async function updateChecklist(id) {
 
   // 유형 또는 기간이 바뀐 경우에만 항목 새로 생성, 아니면 기존 항목 유지
   const typeChanged = cl.type !== type
-    || cl.year_start !== Math.min(ys,ye)
-    || cl.year_end   !== Math.max(ys,ye);
+    || (cl.period_start || '') !== ys
+    || (cl.period_end   || '') !== ye;
   const itemsJson = typeChanged
-    ? JSON.stringify(generateClItems(type, Math.min(ys,ye), Math.max(ys,ye), cc))
+    ? JSON.stringify(generateClItems(type, ys, ye, cc))
     : (typeof cl.items === 'string' ? cl.items : JSON.stringify(cl.items));
 
   cl.project_id = projId; cl.manager = manager; cl.delivery = delivery;
-  cl.type = type; cl.year_start = Math.min(ys,ye); cl.year_end = Math.max(ys,ye);
+  cl.type = type; cl.year_start = parseInt(ys.slice(0,4)); cl.year_end = parseInt(ye.slice(0,4));
+  cl.period_start = ys; cl.period_end = ye;
   cl.items = itemsJson;
 
   const { error } = await window._sb.from('checklists').update({
     project_id: projId, manager, delivery, type,
-    year_start: Math.min(ys,ye), year_end: Math.max(ys,ye), items: itemsJson
+    year_start: parseInt(ys.slice(0,4)), year_end: parseInt(ye.slice(0,4)),
+    period_start: ys, period_end: ye, items: itemsJson
   }).eq('id', id);
   if (error) return alert('저장 실패: ' + error.message);
   closeModalForce();
