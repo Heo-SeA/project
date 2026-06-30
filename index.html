@@ -2039,8 +2039,8 @@ async function updateChecklist(id) {
     .wbs-card h3 { font-size:14px; font-weight:500; margin-bottom:6px; }
     .wbs-card .wbs-date { font-size:12px; color:#888; }
     .wbs-card .wbs-count { font-size:11px; color:#7F77DD; margin-top:6px; font-weight:500; }
-    .wbs-workspace { display:flex; background:#fff; border:1px solid #e8e8e6; border-radius:12px; overflow:hidden; }
-    .wbs-left { width:300px; min-width:300px; flex-shrink:0; border-right:1px solid #e8e8e6; }
+    .wbs-workspace { display:flex; align-items:flex-start; background:#fff; border:1px solid #e8e8e6; border-radius:12px; overflow:hidden; }
+    .wbs-left { width:300px; min-width:300px; flex-shrink:0; border-right:1px solid #e8e8e6; align-self:stretch; }
     .wbs-panel-header { height:64px; background:#f9f9f7; border-bottom:1px solid #e8e8e6; display:flex; align-items:center; padding:0 1rem; font-weight:500; font-size:13px; }
     .wbs-task-row { min-height:76px; border-bottom:1px solid #f0f0ee; padding:10px 14px; display:flex; flex-direction:column; justify-content:center; gap:5px; }
     .wbs-task-row:hover { background:#fafaf9; }
@@ -2075,8 +2075,8 @@ async function updateChecklist(id) {
     .wbs-del-period { font-size:13px; color:#ccc; cursor:pointer; background:none; border:none; padding:0; line-height:1; }
     .wbs-del-period:hover { color:#e24b4a; }
     .wbs-today-line { position:absolute; top:0; bottom:0; width:2px; background:#7F77DD; opacity:.4; z-index:3; pointer-events:none; }
-    .wbs-top-panel { background:#fff; padding:1rem 1.25rem; border:1px solid #e8e8e6; border-radius:12px; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:center; }
-    .wbs-period-row { font-size:12px; color:#888; display:flex; gap:8px; align-items:center; margin-top:6px; }
+    .wbs-top-panel { background:#fff; padding:1rem 1.25rem; border:1px solid #e8e8e6; border-radius:12px; margin-bottom:1rem; display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; }
+    .wbs-period-row { font-size:12px; color:#888; display:flex; gap:6px; align-items:center; margin-top:2px; flex-wrap:wrap; }
     .wbs-period-row input { font-size:12px; padding:4px 8px; border:1px solid #d0d0cc; border-radius:6px; font-family:inherit; }
     .wbs-memo-modal { position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; align-items:center; justify-content:center; z-index:200; }
     .wbs-memo-box { background:#fff; border-radius:14px; padding:1.5rem; width:500px; max-width:95vw; box-shadow:0 8px 32px rgba(0,0,0,.12); }
@@ -2139,18 +2139,20 @@ function renderWbsDetail() {
   const content = document.getElementById('content');
 
   content.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:.75rem">
+      <button class="btn" style="font-size:12px;padding:4px 12px" onclick="wbsBack()">← 목록으로</button>
+    </div>
     <div class="wbs-top-panel">
-      <div>
-        <button class="btn" style="font-size:12px;padding:4px 10px;margin-bottom:8px" onclick="wbsBack()">← 목록으로</button>
+      <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-size:16px;font-weight:500">${wbsCurrent.title}</div>
         <div class="wbs-period-row">
-          전체 기간:
+          <span style="font-size:12px;color:#888;white-space:nowrap;flex-shrink:0">전체 기간:</span>
           <input type="date" id="wbs-p-start" value="${wbsCurrent.start_date||''}" onchange="wbsUpdatePeriod()">
-          ~
+          <span style="color:#888">~</span>
           <input type="date" id="wbs-p-end" value="${wbsCurrent.end_date||''}" onchange="wbsUpdatePeriod()">
         </div>
       </div>
-      <button class="btn btn-primary" onclick="wbsAddBundle()">+ 단계 추가</button>
+      <button class="btn btn-primary" style="flex-shrink:0" onclick="wbsAddBundle()">+ 단계 추가</button>
     </div>
     <div class="wbs-workspace" id="wbs-workspace"></div>
     <div class="wbs-memo-modal" id="wbs-memo-modal" onclick="if(event.target===this)wbsCloseModal()">
@@ -2273,7 +2275,8 @@ function wbsRenderTimeline() {
     + '<div class="wbs-panel-header" style="display:flex;justify-content:space-between;align-items:center">'
     + '<span>단계 및 기간</span>'
     + '<div class="wbs-controls">'
-    + '<button class="wbs-zoom-btn '+(WBS_CELL>=36?'active':'')+'" onclick="wbsSetZoom(36)">일</button>'
+    + '<button class="wbs-zoom-btn '+(WBS_CELL>=48?'active':'')+'" onclick="wbsSetZoom(48)">확대</button>'
+    + '<button class="wbs-zoom-btn '+(WBS_CELL>=20&&WBS_CELL<48?'active':'')+'" onclick="wbsSetZoom(36)">기본</button>'
     + '<button class="wbs-zoom-btn '+(WBS_CELL<20?'active':'')+'" onclick="wbsSetZoom(14)">축소</button>'
     + '</div>'
     + '</div>'
