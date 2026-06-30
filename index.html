@@ -242,7 +242,7 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
     <div class="nav-item" onclick="showPage('schedule')">일정 관리</div>
     <div class="nav-item" onclick="showPage('memos')">메모장</div>
     <div class="nav-item" onclick="showPage('checklists')">체크리스트</div>
-    <div class="nav-item" onclick="showPage('wbs')">WBS</div>
+    <div class="nav-item" onclick="wbsCurrent=null;showPage('wbs')">WBS</div>
   </div>
 
   <div class="main">
@@ -2034,10 +2034,12 @@ async function updateChecklist(id) {
 (function() {
   const style = document.createElement('style');
   style.textContent = `
-    .wbs-card { background:#fff; border:1px solid #e8e8e6; border-radius:12px; padding:1.25rem; margin-bottom:.75rem; cursor:pointer; transition:all .15s; }
-    .wbs-card:hover { border-color:#7F77DD; transform:translateY(-2px); box-shadow:0 4px 12px rgba(127,119,221,.1); }
-    .wbs-card h3 { font-size:14px; font-weight:500; margin-bottom:6px; }
-    .wbs-card .wbs-date { font-size:12px; color:#888; }
+    .wbs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+    .wbs-card { background:#fff; border:1px solid #e8e8e6; border-radius:10px; padding:.9rem 1rem; cursor:pointer; transition:all .15s; }
+    .wbs-card:hover { border-color:#7F77DD; box-shadow:0 2px 8px rgba(127,119,221,.1); }
+    .wbs-card h3 { font-size:13px; font-weight:500; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .wbs-card .wbs-date { font-size:11px; color:#888; }
+    .wbs-card .wbs-proj { font-size:11px; color:#888; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .wbs-card .wbs-count { font-size:11px; color:#7F77DD; margin-top:6px; font-weight:500; }
     .wbs-workspace { display:flex; align-items:flex-start; background:#fff; border:1px solid #e8e8e6; border-radius:12px; overflow:hidden; }
     .wbs-left { width:300px; min-width:300px; flex-shrink:0; border-right:1px solid #e8e8e6; align-self:stretch; }
@@ -2108,16 +2110,16 @@ function wbsPage() {
 
   // 목록 뷰
   content.innerHTML = list.length
-    ? list.map(w => {
+    ? `<div class="wbs-grid">${list.map(w => {
         const proj = DB.projects.find(p => p.id === w.project_id);
         const bundles = (DB.wbs_bundles||[]).filter(b => b.wbs_project_id === w.id);
         return `<div class="wbs-card" onclick="wbsOpen(${w.id})">
           <h3>📁 ${w.title}</h3>
           <div class="wbs-date">📅 ${w.start_date||''} ~ ${w.end_date||''}</div>
-          ${proj?`<div style="font-size:11px;color:#888;margin-top:2px">연결 사업: ${proj.name}</div>`:''}
+          ${proj?`<div class="wbs-proj">연결: ${proj.name}</div>`:''}
           <div class="wbs-count">단계 ${bundles.length}개</div>
         </div>`;
-      }).join('')
+      }).join('')}</div>`
     : '<div class="empty">WBS가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>';
 }
 
