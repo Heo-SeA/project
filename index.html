@@ -2171,7 +2171,10 @@ function renderWbsDetail() {
           <input type="date" id="wbs-p-end" value="${wbsCurrent.end_date||''}" onchange="wbsUpdatePeriod()">
         </div>
       </div>
-      <button class="btn btn-primary" style="flex-shrink:0" onclick="wbsAddBundle()">+ 단계 추가</button>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="btn" style="font-size:12px;padding:5px 12px" onclick="wbsExportExcel(this)">📥 엑셀 내보내기</button>
+        <button class="btn btn-primary" onclick="wbsAddBundle()">+ 단계 추가</button>
+      </div>
     </div>
     <div class="wbs-workspace" id="wbs-workspace"></div>
     <div class="wbs-memo-modal" id="wbs-memo-modal" onclick="if(event.target===this)wbsCloseModal()">
@@ -2543,6 +2546,218 @@ async function wbsSaveNew() {
   closeModalForce();
   wbsCurrent = data;
   renderWbsDetail();
+}
+
+// ── WBS 엑셀 내보내기 ──
+async function wbsExportExcel(btn) {
+  if (!wbsCurrent) return;
+
+  const origText = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '생성 중...'; }
+
+  try {
+    // ExcelJS 지연 로드
+    if (!window.ExcelJS) {
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js';
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+    }
+
+    const w = wbsCurrent;
+    const DB = window._DB;
+    const bundles = (DB.wbs_bundles||[])
+      .filter(b => b.wbs_project_id === w.id)
+      .sort((a,b) => (a.sort_order||0)-(b.sort_order||0));
+    const linkedProj = w.project_id ? (DB.projects||[]).find(p => p.id === w.project_id) : null;
+
+    // 날짜 배열
+    const startDate = new Date(w.start_date);
+    const endDate   = new Date(w.end_date);
+    const dates = [];
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate()+1))
+      dates.push(new Date(d));
+
+    const FIXED = 8;
+    const GS    = FIXED + 1; // 간트 시작 컬럼 인덱스(1-based)
+    const TOTAL = FIXED + dates.length;
+
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('WBS');
+
+    // ── 컬럼 너비 ──
+    const colWidths = [5,10,22,8,10,10,7,11];
+    colWidths.forEach((w2,i) => { ws.getColumn(i+1).width = w2; });
+    for (let i=0;i<dates.length;i++) ws.getColumn(GS+i).width = 2.8;
+
+    // ── 스타일 헬퍼 ──
+    const THIN = (c='BFBFBF') => ({ style:'thin', color:{argb:'FF'+c} });
+    const bdr  = () => ({ left:THIN(), right:THIN(), top:THIN(), bottom:THIN() });
+    const fill = (hex) => ({ type:'pattern', pattern:'solid', fgColor:{argb:'FF'+hex} });
+    const font = (hex='000000',size=9,bold=false,name='맑은 고딕') =>
+      ({ name, size, bold, color:{argb:'FF'+hex} });
+    const aln  = (h='left',v='middle',wrap=false) => ({ horizontal:h, vertical:v, wrapText:wrap });
+
+    function sc(row, col, {val='',bold=false,bg=null,fg='000000',halign='left',sz=9,brd=true}={}) {
+      const cell = ws.getCell(row, col);
+      cell.value = val;
+      cell.font  = font(fg, sz, bold);
+      if (bg) cell.fill = fill(bg);
+      cell.alignment = aln(halign);
+      if (brd) cell.border = bdr();
+      return cell;
+    }
+
+    // ── 평일 수 계산 ──
+    function workdays(s, e) {
+      if (!s||!e) return 0;
+      let n=0, cur=new Date(s), end=new Date(e);
+      while(cur<=end){ if(cur.getDay()!==0&&cur.getDay()!==6) n++; cur.setDate(cur.getDate()+1); }
+      return n;
+    }
+
+    // ══ ROW 1: 제목 ══
+    ws.getRow(1).height = 28;
+    ws.mergeCells(1,1,1,TOTAL);
+    sc(1,1,{val:w.title, bold:true, bg:'2F4F7F', fg:'FFFFFF', halign:'center', sz:14});
+
+    // ══ ROW 2: 구분선 ══
+    ws.getRow(2).height = 5;
+    ws.mergeCells(2,1,2,TOTAL);
+    ws.getCell(2,1).fill = fill('A8C8F0');
+
+    // ══ ROW 3: 사업 정보 ══
+    ws.getRow(3).height = 18;
+    const infoItems = [
+      { label:'발주처',   val: linkedProj ? linkedProj.name : '-',              cols:[1,2] },
+      { label:'사업기간', val: `${w.start_date}  ~  ${w.end_date}`,            cols:[3,4] },
+      { label:'착수일',   val: w.start_date,                                    cols:[5,6] },
+      { label:'납기일',   val: w.end_date,                                      cols:[7,8] },
+    ];
+    infoItems.forEach(({label,val,cols}) => {
+      sc(3,cols[0],{val:label, bold:true, bg:'DDEEFF', fg:'2F4F7F', halign:'center'});
+      sc(3,cols[1],{val,             bg:'F2F7FF', halign:'left'});
+    });
+    for(let i=0;i<dates.length;i++) sc(3,GS+i,{bg:'F2F7FF'});
+
+    // ══ ROW 4: 구분선 ══
+    ws.getRow(4).height = 5;
+    ws.mergeCells(4,1,4,TOTAL);
+    ws.getCell(4,1).fill = fill('A8C8F0');
+
+    // ══ ROW 5: 컬럼 헤더 ══
+    ws.getRow(5).height = 18;
+    ['No','단계','업무명','담당자','시작일','종료일','작업일','실제완료일'].forEach((h,i)=>{
+      sc(5,i+1,{val:h, bold:true, bg:'2F4F7F', fg:'FFFFFF', halign:'center'});
+    });
+    dates.forEach((d,i)=>{
+      const label = d.getDate()%3===1 ? `${d.getMonth()+1}/${d.getDate()}` : '';
+      sc(5,GS+i,{val:label, bold:true, bg:'2F4F7F', fg:'FFFFFF', halign:'center', sz:7});
+    });
+
+    // ══ ROW 6: 요일 ══
+    ws.getRow(6).height = 14;
+    for(let i=1;i<=FIXED;i++) sc(6,i,{bg:'E9EFF7'});
+    const DAY_KR = ['일','월','화','수','목','금','토'];
+    dates.forEach((d,i)=>{
+      const dow = d.getDay();
+      const isWe = dow===0||dow===6;
+      sc(6,GS+i,{val:DAY_KR[dow], bg:isWe?'8B0000':'4472C4', fg:'FFFFFF', halign:'center', sz:7});
+    });
+
+    // ══ 데이터 행 ══
+    let curRow = 7;
+    bundles.forEach((b, bIdx) => {
+      // 색상 (#7986cb → 7986cb)
+      const rawColor = WBS_COLORS[b.color_idx % WBS_COLORS.length].replace('#','');
+
+      let periods = [];
+      if (b.periods) {
+        periods = typeof b.periods==='string' ? JSON.parse(b.periods) : b.periods;
+      } else if (b.start_date) {
+        periods = [{label:'1차', start:b.start_date, end:b.end_date||b.start_date}];
+      }
+
+      const allStarts = periods.map(p=>p.start).filter(Boolean).sort();
+      const allEnds   = periods.map(p=>p.end).filter(Boolean).sort();
+      const oStart    = allStarts[0]||'';
+      const oEnd      = allEnds[allEnds.length-1]||'';
+      const isParent  = periods.length > 1;
+      const bg        = isParent ? 'D6E4F0' : 'FFFFFF';
+      const no        = String(bIdx+1);
+
+      ws.getRow(curRow).height = 16;
+      sc(curRow,1,{val:no,    bold:isParent, bg, halign:'center'});
+      sc(curRow,2,{val:b.name,bold:isParent, bg, halign:'center'});
+      sc(curRow,3,{val:b.name,bold:isParent, bg});
+      sc(curRow,4,{val:'',                   bg});  // 담당자 (미구현)
+      sc(curRow,5,{val:oStart,               bg, halign:'center'});
+      sc(curRow,6,{val:oEnd,                 bg, halign:'center'});
+      sc(curRow,7,{val:workdays(oStart,oEnd),bold:isParent, bg, halign:'center'});
+      sc(curRow,8,{val:'',                   bg, halign:'center'});  // 실제완료일 (미구현)
+
+      // 간트 셀
+      dates.forEach((d,i)=>{
+        const ds = d.toISOString().slice(0,10);
+        const inRange = periods.some(p=>p.start&&p.end&&ds>=p.start&&ds<=p.end);
+        const isWe    = d.getDay()===0||d.getDay()===6;
+        const cellBg  = inRange&&!isWe ? rawColor : isWe ? 'EEEEEE' : 'FFFFFF';
+        const cell = ws.getCell(curRow, GS+i);
+        cell.fill = fill(cellBg);
+        cell.border = bdr();
+      });
+      curRow++;
+
+      // 서브 기간 행 (periods 2개 이상)
+      if (periods.length > 1) {
+        periods.forEach((p, pi) => {
+          ws.getRow(curRow).height = 16;
+          sc(curRow,1,{val:`${bIdx+1}-${pi+1}`, halign:'center'});
+          sc(curRow,2,{val:'', halign:'center'});
+          sc(curRow,3,{val:p.label||(pi+1)+'차'});
+          sc(curRow,4,{val:''});
+          sc(curRow,5,{val:p.start||'', halign:'center'});
+          sc(curRow,6,{val:p.end||'',   halign:'center'});
+          sc(curRow,7,{val:workdays(p.start,p.end), halign:'center'});
+          sc(curRow,8,{val:'', halign:'center'});
+
+          dates.forEach((d,i)=>{
+            const ds = d.toISOString().slice(0,10);
+            const inP = p.start&&p.end&&ds>=p.start&&ds<=p.end;
+            const isWe = d.getDay()===0||d.getDay()===6;
+            const cellBg = inP&&!isWe ? rawColor : isWe ? 'EEEEEE' : 'FFFFFF';
+            const cell = ws.getCell(curRow, GS+i);
+            cell.fill = fill(cellBg);
+            cell.border = bdr();
+          });
+          curRow++;
+        });
+      }
+    });
+
+    // 틀 고정
+    ws.views = [{ state:'frozen', xSplit:FIXED, ySplit:6, activeCell:`I7` }];
+
+    // 다운로드
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `WBS_${w.title}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch(e) {
+    console.error(e);
+    alert('엑셀 생성 중 오류가 발생했어요: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = origText; }
+  }
 }
 
 // ── 초기화 ──
