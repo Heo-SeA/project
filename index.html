@@ -97,6 +97,26 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
 .tab:hover { background: #f5f5f3; }
 .tab.active { background: #7F77DD; color: #fff; border-color: #7F77DD; }
 
+/* ── 벤치마킹 ── */
+.bm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.bm-card { background: #fff; border: 1px solid #e8e8e4; border-radius: 12px; overflow: hidden; cursor: pointer; transition: box-shadow .15s, transform .15s; display: flex; flex-direction: column; }
+.bm-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.1); transform: translateY(-2px); }
+.bm-logo-wrap { height: 110px; background: #f7f7f5; display: flex; align-items: center; justify-content: center; border-bottom: 1px solid #eee; }
+.bm-logo-wrap img { max-width: 120px; max-height: 70px; object-fit: contain; }
+.bm-logo-fallback { width: 56px; height: 56px; border-radius: 12px; background: #e8e6ff; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #7F77DD; font-weight: 700; }
+.bm-body { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.bm-title { font-size: 13px; font-weight: 600; color: #1a1a1a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-url { font-size: 11px; color: #aaa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-memo { font-size: 12px; color: #666; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; flex: 1; }
+.bm-footer { padding: 8px 12px; border-top: 1px solid #f0f0ec; display: flex; align-items: center; justify-content: space-between; }
+.bm-category { font-size: 10px; background: #f0effe; color: #7F77DD; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+.bm-actions { display: flex; gap: 6px; }
+.bm-actions button { font-size: 11px; padding: 3px 8px; border: 1px solid #e0e0dc; border-radius: 6px; background: transparent; cursor: pointer; color: #666; font-family: inherit; }
+.bm-actions button:hover { background: #f5f5f3; }
+.bm-filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+.bm-search { padding: 6px 12px; border: 1px solid #d0d0cc; border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; width: 200px; }
+.bm-search:focus { border-color: #7F77DD; }
+
 /* ── 메모 ── */
 .memo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .memo-card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1rem 1.25rem; cursor: pointer; transition: border-color .12s; }
@@ -243,6 +263,7 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
     <div class="nav-item" onclick="showPage('memos')">메모장</div>
     <div class="nav-item" onclick="showPage('checklists')">체크리스트</div>
     <div class="nav-item" onclick="wbsCurrent=null;showPage('wbs')">WBS</div>
+    <div class="nav-item" onclick="showPage('benchmarks')">벤치마킹</div>
   </div>
 
   <div class="main">
@@ -273,19 +294,20 @@ const statusEl = document.getElementById('db-status');
 
 // 초기 로드
 async function initLoad() {
-  const [projRes, evtRes, memoRes, clRes, wbsPRes, wbsBRes] = await Promise.all([
+  const [projRes, evtRes, memoRes, clRes, wbsPRes, wbsBRes, bmRes] = await Promise.all([
     sb.from('projects').select('*').order('id', { ascending: false }),
     sb.from('events').select('*').order('date', { ascending: true }),
     sb.from('memos').select('*').order('updated_at', { ascending: false }),
     sb.from('checklists').select('*').order('created_at', { ascending: false }),
     sb.from('wbs_projects').select('*').order('created_at', { ascending: false }),
-    sb.from('wbs_bundles').select('*').order('sort_order', { ascending: true })
+    sb.from('wbs_bundles').select('*').order('sort_order', { ascending: true }),
+    sb.from('benchmarks').select('*').order('created_at', { ascending: false })
   ]);
 
   if (projRes.error) {
     statusEl.textContent = '❌ DB 연결 실패';
     statusEl.style.color = '#a32d2d';
-    window._DB = { projects: [], events: [], memos: [], checklists: [], wbs_projects: [], wbs_bundles: [], nextId: 1 };
+    window._DB = { projects: [], events: [], memos: [], checklists: [], wbs_projects: [], wbs_bundles: [], benchmarks: [], nextId: 1 };
     showPage('dashboard');
     return;
   }
@@ -297,6 +319,7 @@ async function initLoad() {
     checklists:   clRes.data    || [],
     wbs_projects: wbsPRes.data  || [],
     wbs_bundles:  wbsBRes.data  || [],
+    benchmarks:   bmRes.data  || [],
     nextId: 1
   };
 
@@ -376,13 +399,14 @@ window._sbDeleteMemo = async function(id) {
 };
 
 window._sbReload = async function() {
-  const [p, e, m, cl, wp, wb] = await Promise.all([
+  const [p, e, m, cl, wp, wb, bm] = await Promise.all([
     sb.from('projects').select('*').order('id', { ascending: false }),
     sb.from('events').select('*').order('date', { ascending: true }),
     sb.from('memos').select('*').order('updated_at', { ascending: false }),
     sb.from('checklists').select('*').order('created_at', { ascending: false }),
     sb.from('wbs_projects').select('*').order('created_at', { ascending: false }),
-    sb.from('wbs_bundles').select('*').order('sort_order', { ascending: true })
+    sb.from('wbs_bundles').select('*').order('sort_order', { ascending: true }),
+    sb.from('benchmarks').select('*').order('created_at', { ascending: false })
   ]);
   window._DB.projects     = p.data  || window._DB.projects;
   window._DB.events       = e.data  || window._DB.events;
@@ -390,6 +414,7 @@ window._sbReload = async function() {
   window._DB.checklists   = cl.data || window._DB.checklists;
   window._DB.wbs_projects = wp.data || window._DB.wbs_projects;
   window._DB.wbs_bundles  = wb.data || window._DB.wbs_bundles;
+  window._DB.benchmarks   = bm.data || window._DB.benchmarks;
 };
 
 // ── 로그인 체크 ──
@@ -503,7 +528,7 @@ function closeModal(e) { if (e.target === e.currentTarget) document.getElementBy
 function closeModalForce() { document.getElementById('modal-container').innerHTML = ''; }
 
 // ── 네비게이션 ──
-const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장', checklists:'체크리스트', wbs:'WBS' };
+const PAGE_TITLES = { dashboard:'대시보드', projects:'사업 목록', schedule:'일정 관리', memos:'메모장', checklists:'체크리스트', wbs:'WBS', benchmarks:'벤치마킹' };
 
 function setNav(p) {
   document.querySelectorAll('.nav-item').forEach(el => {
@@ -520,6 +545,7 @@ function showPage(p) {
   else if (p === 'memos') a.innerHTML = `<button class="btn btn-primary" onclick="openEditMemo(null)">+ 메모 추가</button>`;
   else if (p === 'checklists') a.innerHTML = `<button class="btn btn-primary" onclick="openAddChecklist()">+ 체크리스트 추가</button>`;
   else if (p === 'wbs') a.innerHTML = `<button class="btn btn-primary" onclick="wbsCreateProject()">+ WBS 등록</button>`;
+  else if (p === 'benchmarks') a.innerHTML = `<button class="btn btn-primary" onclick="bmOpenModal(null)">+ 사이트 추가</button>`;
   else a.innerHTML = '';
   pages[p]();
 }
@@ -666,9 +692,28 @@ const pages = {
     wbsPage();
   },
 
-  checklists() {
+  benchmarks() {
     const DB = window._DB;
-    const activeTab = window._clTab || '진행중';
+    const list = DB.benchmarks || [];
+    const search = (window._bmSearch||'').toLowerCase();
+    const filtered = search
+      ? list.filter(b => (b.title||'').toLowerCase().includes(search) || (b.url||'').toLowerCase().includes(search) || (b.memo||'').toLowerCase().includes(search))
+      : list;
+
+    document.getElementById('content').innerHTML = `
+      <div class="bm-filter-bar">
+        <input class="bm-search" id="bm-search-input" placeholder="사이트명 · URL · 메모 검색"
+          value="${window._bmSearch||''}" oninput="bmSearchRender()"/>
+        ${search ? `<button class="btn" style="font-size:12px" onclick="window._bmSearch='';pages.benchmarks()">✕ 초기화</button>` : ''}
+        <span style="font-size:12px;color:#aaa;margin-left:auto">${filtered.length}개</span>
+      </div>
+      ${filtered.length
+        ? `<div class="bm-grid">${filtered.map(b => bmCard(b)).join('')}</div>`
+        : `<div class="empty">등록된 벤치마킹 사이트가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>`
+      }`;
+  },
+
+  checklists() {
     const all = DB.checklists || [];
     const list = all.filter(cl => (cl.status || '진행중') === activeTab);
     document.getElementById('content').innerHTML = `
@@ -688,6 +733,166 @@ const pages = {
   }
 
 };
+
+// ── 벤치마킹 ──
+function bmCard(b) {
+  const domain = (() => { try { return new URL(b.url).hostname.replace('www.',''); } catch(e) { return ''; } })();
+  const logoUrl = domain ? `https://logo.clearbit.com/${domain}` : '';
+  const initial = (b.title||'?')[0].toUpperCase();
+  return `<div class="bm-card">
+    <div class="bm-logo-wrap">
+      ${logoUrl
+        ? `<img src="${logoUrl}" alt="${b.title}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+           <div class="bm-logo-fallback" style="display:none">${initial}</div>`
+        : `<div class="bm-logo-fallback">${initial}</div>`}
+    </div>
+    ${b.image_url ? `<div style="border-bottom:1px solid #eee;overflow:hidden;max-height:140px;cursor:pointer" onclick="bmLightbox('${b.image_url}','${(b.title||'').replace(/'/g,"\\'")}')">
+      <img src="${b.image_url}" style="width:100%;object-fit:cover;display:block"/>
+    </div>` : ''}
+    <div class="bm-body">
+      <div class="bm-title" title="${b.title||''}">${b.title||'(제목 없음)'}</div>
+      <div class="bm-url"><a href="${b.url||'#'}" target="_blank" rel="noopener" style="color:#aaa;text-decoration:none" onclick="event.stopPropagation()">${b.url||''}</a></div>
+      ${b.memo ? `<div class="bm-memo">${b.memo.replace(/\n/g,'<br>')}</div>` : ''}
+    </div>
+    <div class="bm-footer">
+      <span class="bm-category">${b.category||'미분류'}</span>
+      <div class="bm-actions">
+        <button onclick="bmOpenModal(${b.id})">수정</button>
+        <button onclick="bmDelete(${b.id})">삭제</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function bmSearchRender() {
+  const input = document.getElementById('bm-search-input');
+  if (!input) return;
+  window._bmSearch = input.value.trim();
+  pages.benchmarks();
+  setTimeout(() => { const el = document.getElementById('bm-search-input'); if(el) el.focus(); }, 10);
+}
+
+function bmLightbox(url, title) {
+  const lb = document.createElement('div');
+  lb.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';
+  lb.innerHTML = `<img src="${url}" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 40px rgba(0,0,0,.5)"/>`;
+  lb.onclick = () => lb.remove();
+  document.body.appendChild(lb);
+}
+
+function bmOpenModal(id) {
+  const b = id ? (window._DB.benchmarks||[]).find(x => x.id===id) : null;
+  window._bmImgUrl = b ? (b.image_url||'') : '';
+
+  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" style="width:520px">
+      <h3>${b ? '벤치마킹 수정' : '벤치마킹 사이트 추가'}</h3>
+      <div class="form-group"><label>사이트명 *</label><input id="bm-title" value="${b?b.title:''}" placeholder="예) 카이스트 AI대학"/></div>
+      <div class="form-group"><label>URL</label><input id="bm-url" value="${b?b.url:''}" placeholder="https://"/></div>
+      <div class="form-group"><label>카테고리</label><input id="bm-category" value="${b?b.category||'':''}" placeholder="예) 대학교, 공공기관 등"/></div>
+      <div class="form-group"><label>메모</label><textarea id="bm-memo" style="min-height:100px" placeholder="디자인 특이사항, 참고할 점 등">${b?b.memo||'':''}</textarea></div>
+      <div class="form-group">
+        <label>화면 캡처 이미지</label>
+        <div class="img-drop-zone" id="bm-drop-zone" onclick="document.getElementById('bm-img-input').click()">
+          클릭하거나 이미지를 드래그 앤 드롭 · Ctrl+V 붙여넣기
+        </div>
+        <input type="file" id="bm-img-input" accept="image/*" style="display:none" onchange="bmHandleImg(this.files[0])"/>
+        <div id="bm-img-preview"></div>
+        <span id="bm-upload-status" style="font-size:12px;color:#888"></span>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" onclick="closeModalForce()">취소</button>
+        <button class="btn btn-primary" id="bm-save-btn" onclick="bmSave(${id||'null'})">${b?'저장':'추가'}</button>
+      </div>
+    </div>
+  </div>`;
+
+  setTimeout(() => {
+    bmRenderImgPreview();
+    bmSetupDropZone();
+    document.getElementById('bm-title').focus();
+  }, 50);
+}
+
+function bmRenderImgPreview() {
+  const wrap = document.getElementById('bm-img-preview');
+  if (!wrap) return;
+  wrap.innerHTML = window._bmImgUrl
+    ? `<div class="img-thumb" style="margin-top:8px">
+        <img src="${window._bmImgUrl}" alt="캡처 이미지"/>
+        <button class="del-img" onclick="window._bmImgUrl='';bmRenderImgPreview()">×</button>
+       </div>`
+    : '';
+}
+
+function bmSetupDropZone() {
+  const zone = document.getElementById('bm-drop-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('dragover'); bmHandleImg(e.dataTransfer.files[0]); });
+  document.addEventListener('paste', function onPaste(e) {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const img = [...items].find(i => i.type.startsWith('image/'));
+    if (img) bmHandleImg(img.getAsFile());
+    document.removeEventListener('paste', onPaste);
+  });
+}
+
+async function bmHandleImg(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const status = document.getElementById('bm-upload-status');
+  if (status) status.textContent = '업로드 중...';
+  try {
+    const ext  = file.name?.split('.').pop() || 'png';
+    const path = `bm-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error } = await window._sb.storage.from('memo-images').upload(path, file, { contentType: file.type });
+    if (error) throw error;
+    const { data: urlData } = window._sb.storage.from('memo-images').getPublicUrl(path);
+    window._bmImgUrl = urlData.publicUrl;
+    bmRenderImgPreview();
+  } catch(e) {
+    alert('이미지 업로드 실패: ' + e.message);
+  }
+  if (status) status.textContent = '';
+}
+
+async function bmSave(id) {
+  const title = document.getElementById('bm-title').value.trim();
+  if (!title) return alert('사이트명을 입력해주세요');
+  const btn = document.getElementById('bm-save-btn');
+  if (btn) btn.disabled = true;
+  const data = {
+    title,
+    url:       document.getElementById('bm-url').value.trim(),
+    category:  document.getElementById('bm-category').value.trim(),
+    memo:      document.getElementById('bm-memo').value.trim(),
+    image_url: window._bmImgUrl || null,
+  };
+  const sb = window._sb;
+  if (id) {
+    const { error } = await sb.from('benchmarks').update(data).eq('id', id);
+    if (error) { alert('저장 실패: ' + error.message); if(btn) btn.disabled=false; return; }
+    const idx = window._DB.benchmarks.findIndex(x => x.id===id);
+    if (idx > -1) window._DB.benchmarks[idx] = { ...window._DB.benchmarks[idx], ...data };
+  } else {
+    const { data: inserted, error } = await sb.from('benchmarks').insert([data]).select().single();
+    if (error) { alert('저장 실패: ' + error.message); if(btn) btn.disabled=false; return; }
+    window._DB.benchmarks.unshift(inserted);
+  }
+  window._bmImgUrl = '';
+  closeModalForce();
+  pages.benchmarks();
+}
+
+async function bmDelete(id) {
+  if (!confirm('삭제할까요?')) return;
+  const { error } = await window._sb.from('benchmarks').delete().eq('id', id);
+  if (error) return alert('삭제 실패: ' + error.message);
+  window._DB.benchmarks = window._DB.benchmarks.filter(x => x.id !== id);
+  pages.benchmarks();
+}
 
 // ── 메모 검색 렌더 ──
 function memoSearchRender() {
