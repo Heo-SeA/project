@@ -714,6 +714,8 @@ const pages = {
   },
 
   checklists() {
+    const DB = window._DB;
+    const activeTab = window._clTab || '진행중';
     const all = DB.checklists || [];
     const list = all.filter(cl => (cl.status || '진행중') === activeTab);
     document.getElementById('content').innerHTML = `
