@@ -118,6 +118,10 @@ textarea { resize: vertical; min-height: 72px; line-height: 1.6; }
 .bm-search:focus { border-color: #7F77DD; }
 
 /* ── 메모 ── */
+/* ── 사업 상세 페이지 ── */
+.pd-wrap { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,1fr); gap: 1.25rem; align-items: start; }
+.pd-memo-list { display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 900px) { .pd-wrap { grid-template-columns: 1fr; } }
 .memo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .memo-card { background: #fff; border: 1px solid #e8e8e6; border-radius: 12px; padding: 1rem 1.25rem; cursor: pointer; transition: border-color .12s; }
 .memo-card:hover { border-color: #b0aae8; }
@@ -360,6 +364,7 @@ window._sbSaveProject = async function(data) {
 window._sbDeleteProject = async function(id) {
   // 관련 이벤트도 삭제
   await sb.from('events').delete().eq('project_id', id);
+  await sb.from('memos').delete().eq('project_id', id);
   const { error } = await sb.from('projects').delete().eq('id', id);
   return error;
 };
@@ -941,7 +946,7 @@ function memoSearchRender() {
   if (clearBtn) clearBtn.style.display = keyword ? 'block' : 'none';
 
   const DB = window._DB;
-  const all = [...DB.memos].sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
+  const all = DB.memos.filter(m => !m.project_id).sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
   const memos = keyword
     ? all.filter(m =>
         (m.title||'').toLowerCase().includes(keyword) ||
@@ -1290,11 +1295,17 @@ function openProject(id) {
     </div>`;
   }
 
-  document.getElementById('modal-container').innerHTML = `<div class="modal-overlay" onclick="closeModal(event)">
-    <div class="modal" style="width:620px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:1.25rem">
+  window._projDetailId = id;
+  document.getElementById('page-title').textContent = p.name;
+  setNav('projects');
+  document.getElementById('topbar-actions').innerHTML =
+    `<button class="btn" onclick="showPage('projects')">← 목록</button>
+     <button class="btn btn-danger" onclick="deleteProject(${id})">삭제</button>
+     <button class="btn btn-primary" onclick="openEditProject(${id})">수정</button>`;
+
+  const infoHtml = `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:1.25rem">
         ${bizBadge(p.biz_type)}
-        <h3 style="flex:1;margin:0;font-size:16px">${p.name}</h3>
         ${statusBadge(p.status)}
       </div>
 
@@ -1340,13 +1351,42 @@ function openProject(id) {
         </div>`).join('')}
       </div>`:''}
 
-      <div class="modal-footer">
-        <button class="btn btn-danger" onclick="deleteProject(${id})">삭제</button>
-        <button class="btn" onclick="closeModalForce()">닫기</button>
-        <button class="btn btn-primary" onclick="openEditProject(${id})">수정</button>
-      </div>
+  `;
+
+  document.getElementById('content').innerHTML =
+    `<div class="pd-wrap">
+      <div class="pd-info">${infoHtml}</div>
+      <div class="card pd-memo" id="pd-memo-panel" style="margin-bottom:0"></div>
+    </div>`;
+  renderProjectMemos(id);
+}
+
+// ── 사업 상세: 프로젝트 메모 영역 ──
+function renderProjectMemos(projId) {
+  const panel = document.getElementById('pd-memo-panel');
+  if (!panel) return;
+  const list = (window._DB.memos || [])
+    .filter(m => Number(m.project_id) === Number(projId))
+    .sort((a,b) => (b.updated_at||'').localeCompare(a.updated_at||''));
+
+  const cards = list.map(m => {
+    const imgs  = m.images ? JSON.parse(m.images) : [];
+    const files = m.files  ? JSON.parse(m.files)  : [];
+    return `<div class="memo-card" onclick="openViewMemo(${m.id})">
+      <div class="memo-title">${m.title||'제목 없음'}</div>
+      <div class="memo-preview">${(m.content||'').replace(/\n/g,' ')}</div>
+      ${imgs.length ? `<div style="margin-top:8px;display:flex;gap:4px;align-items:center">${imgs.slice(0,3).map(url=>`<img src="${url}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid #e8e8e6"/>`).join('')}</div>` : ''}
+      ${files.length ? `<div style="margin-top:6px;font-size:11px;color:#888">📎 파일 ${files.length}개</div>` : ''}
+      <div class="memo-date">${fmtDate((m.updated_at||'').split('T')[0])}</div>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:14px;font-weight:600">프로젝트 메모 <span style="font-size:12px;color:#aaa;font-weight:400">${list.length}</span></div>
+      <button class="btn btn-primary btn-sm" onclick="openEditMemo(null, ${projId})">+ 메모 추가</button>
     </div>
-  </div>`;
+    ${list.length ? `<div class="pd-memo-list">${cards}</div>` : '<div class="empty">이 사업의 메모가 없어요.<br>오른쪽 위 버튼으로 추가해보세요.</div>'}`;
 }
 
 // ── 사업 등록/수정 폼 ──
@@ -1640,7 +1680,7 @@ async function fpSave(id) {
     }
     stat.className = 'save-stat ok'; stat.textContent = '저장됐어요!';
     if (window._sbReload) await window._sbReload();
-    setTimeout(() => { closeModalForce(); showPage('projects'); }, 800);
+    setTimeout(() => { closeModalForce(); if (id) openProject(id); else showPage('projects'); }, 800);
   } catch(e) {
     stat.className = 'save-stat err'; stat.textContent = '저장 실패: ' + e.message;
     btn.disabled = false;
@@ -1649,7 +1689,7 @@ async function fpSave(id) {
 
 // ── 사업 삭제 ──
 async function deleteProject(id) {
-  if (!confirm('사업을 삭제하면 관련 일정도 삭제됩니다. 계속할까요?')) return;
+  if (!confirm('사업을 삭제하면 관련 일정과 프로젝트 메모도 삭제됩니다. 계속할까요?')) return;
   if (window._sbDeleteProject) await window._sbDeleteProject(id);
   if (window._sbReload) await window._sbReload();
   closeModalForce(); showPage('projects');
@@ -1775,8 +1815,9 @@ function openViewMemo(id) {
   </div>`;
 }
 
-function openEditMemo(id) {
+function openEditMemo(id, projId) {
   const m = id ? window._DB.memos.find(x => x.id===id) : null;
+  window._memoProjId = m ? (m.project_id || null) : (projId || null);
   window._memoImgs  = m && m.images ? JSON.parse(m.images) : [];
   window._memoFiles = m && m.files  ? JSON.parse(m.files)  : [];
 
@@ -1928,14 +1969,20 @@ async function saveMemo(id) {
     content,
     images:     JSON.stringify(window._memoImgs  || []),
     files:      JSON.stringify(window._memoFiles || []),
+    project_id: window._memoProjId || null,
     updated_at: now,
     created_at: id ? undefined : now
   };
   if (!id) delete data.created_at;
-  if (window._sbSaveMemo) await window._sbSaveMemo(data);
+  if (window._sbSaveMemo) {
+    const err = await window._sbSaveMemo(data);
+    if (err) { alert('저장 실패: ' + err.message); if (btn) btn.disabled = false; return; }
+  }
   if (window._sbReload) await window._sbReload();
   window._memoImgs = []; window._memoFiles = [];
-  closeModalForce(); showPage('memos');
+  const pid = window._memoProjId; window._memoProjId = null;
+  closeModalForce();
+  if (pid) openProject(pid); else showPage('memos');
 }
 
 function openLightbox(url, title, idx) {
@@ -1959,9 +2006,12 @@ function openLightbox(url, title, idx) {
 
 async function deleteMemo(id) {
   if (!confirm('메모를 삭제할까요?')) return;
+  const target = window._DB.memos.find(x => x.id===id);
+  const pid = target ? target.project_id : null;
   if (window._sbDeleteMemo) await window._sbDeleteMemo(id);
   if (window._sbReload) await window._sbReload();
-  closeModalForce(); showPage('memos');
+  closeModalForce();
+  if (pid) openProject(pid); else showPage('memos');
 }
 
 
